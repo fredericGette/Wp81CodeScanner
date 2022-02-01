@@ -18,6 +18,7 @@ using namespace Windows::UI::Xaml::Data;
 using namespace Windows::UI::Xaml::Input;
 using namespace Windows::UI::Xaml::Media;
 using namespace Windows::UI::Xaml::Navigation;
+using namespace Windows::Media::Capture;
 
 // The Blank Page item template is documented at http://go.microsoft.com/fwlink/?LinkId=234238
 
@@ -42,4 +43,10 @@ void MainPage::OnNavigatedTo(NavigationEventArgs^ e)
 	// Windows::Phone::UI::Input::HardwareButtons.BackPressed event.
 	// If you are using the NavigationHelper provided by some templates,
 	// this event is handled for you.
+
+	// https://github.com/microsoft/Windows-universal-samples/blob/main/Samples/HolographicMixedRealityCapture/cpp/MediaCaptureManager.cpp
+	// https://github.com/Microsoft/Windows-universal-samples/blob/main/Samples/HolographicFaceTracking/cpp/Content/VideoFrameProcessor.cpp
+	// https://www.examplefiles.net/cs/1588927
+	MediaCapture^ mediaCapture = ref new Windows::Media::Capture::MediaCapture;
+	Concurrency::create_task(mediaCapture->InitializeAsync());
 }
