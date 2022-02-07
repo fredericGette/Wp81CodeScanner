@@ -8,6 +8,15 @@
     mc:Ignorable="d">
 
     <Grid Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
-        <CaptureElement Name="PreviewControl" Stretch="Uniform"/>
+
+        <Border BorderThickness="1" BorderBrush="Red">
+            <StackPanel Margin="20">
+                <Button Click="Button_Start_Click">Start</Button>
+                <CaptureElement Name="PreviewControl"  Width="200" Height="150"/>
+                <Button Click="Button_Capture_Click">Capture</Button>
+                <Image Name="ImageControl" Width="320" Height="240"/>
+                <Button Click="Button_Stop_Click">Stop</Button>
+            </StackPanel>
+        </Border>
     </Grid>
 </Page>

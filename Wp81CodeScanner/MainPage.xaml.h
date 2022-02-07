@@ -19,5 +19,18 @@ namespace Wp81CodeScanner
 
 	protected:
 		virtual void OnNavigatedTo(Windows::UI::Xaml::Navigation::NavigationEventArgs^ e) override;
+
+	private:
+		// Prevent the screen from sleeping while the camera is running
+		Windows::System::Display::DisplayRequest^ _displayRequest;
+
+		// MediaCapture
+		Platform::Agile<Windows::Media::Capture::MediaCapture^> _mediaCapture;
+		Platform::Agile<Windows::Media::Capture::LowLagPhotoCapture^> _photoCapture;
+		Windows::Storage::Streams::IBuffer^ readBuffer;
+
+		void Button_Start_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e);
+		void Button_Capture_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e);
+		void Button_Stop_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e);
 	};
 }
