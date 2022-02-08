@@ -78,8 +78,8 @@ void MainPage::Button_Start_Click(Platform::Object^ sender, Windows::UI::Xaml::R
 {
 	_mediaCapture = ref new Windows::Media::Capture::MediaCapture();
 	MediaCaptureInitializationSettings^ settings = ref new MediaCaptureInitializationSettings();
-//	settings->StreamingCaptureMode = StreamingCaptureMode::Video;
-//	settings->PhotoCaptureSource = PhotoCaptureSource::VideoPreview;
+	settings->StreamingCaptureMode = StreamingCaptureMode::Video;
+	settings->PhotoCaptureSource = PhotoCaptureSource::VideoPreview;
 
 	create_task(_mediaCapture->InitializeAsync(settings))
 		.then([this](task<void> previousTask) {
@@ -119,11 +119,14 @@ void MainPage::Button_Start_Click(Platform::Object^ sender, Windows::UI::Xaml::R
 							.then([=](task<void>& previousTask)
 						{
 							previousTask.get();
+
+							Debug("PhotoSequence Supported: %d\n", _mediaCapture->VideoDeviceController->LowLagPhotoSequence->Supported);
+
 							//Windows::Media::MediaProperties::ImageEncodingProperties^ imgEncProp = Windows::Media::MediaProperties::ImageEncodingProperties::CreateUncompressed(Windows::Media::MediaProperties::MediaPixelFormat::Bgra8);
 							// https://docs.microsoft.com/en-us/windows/win32/medfound/recommended-8-bit-yuv-formats-for-video-rendering?redirectedfrom=MSDN
 							Windows::Media::MediaProperties::ImageEncodingProperties^ imgEncProp = Windows::Media::MediaProperties::ImageEncodingProperties::CreateUncompressed(Windows::Media::MediaProperties::MediaPixelFormat::Nv12);
-							imgEncProp->Width = 320;
-							imgEncProp->Height = 240;
+							imgEncProp->Width = 1280;
+							imgEncProp->Height = 720;
 							create_task(_mediaCapture->PrepareLowLagPhotoCaptureAsync(imgEncProp))
 								.then([this](LowLagPhotoCapture^ photoCapture)
 							{
@@ -161,7 +164,11 @@ void MainPage::Button_Stop_Click(Platform::Object^ sender, Windows::UI::Xaml::Ro
 
 void MainPage::Button_Capture_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e)
 {
+	capturePhoto();
+}
 
+void MainPage::capturePhoto()
+{
 	create_task(_photoCapture->CaptureAsync())
 		.then([this](CapturedPhoto^ photo)
 	{
@@ -175,9 +182,9 @@ void MainPage::Button_Capture_Click(Platform::Object^ sender, Windows::UI::Xaml:
 		int width = photo->Frame->Width;
 		int height = photo->Frame->Height;
 
-		readBuffer = ref new Buffer(width*height*4); // Pixel format Bgra8
+		readBuffer = ref new Buffer(width*height * 4); // Pixel format Bgra8
 		create_task(photo->Frame->ReadAsync(readBuffer, readBuffer->Capacity, InputStreamOptions::Partial))
-			.then([=](task<IBuffer^> readTask) 
+			.then([=](task<IBuffer^> readTask)
 		{
 			IBuffer^ bufOrig = readTask.get();
 			Debug("Bytes read from stream : %d\n", bufOrig->Length);
@@ -227,6 +234,7 @@ void MainPage::Button_Capture_Click(Platform::Object^ sender, Windows::UI::Xaml:
 			//memcpy_s(pBuffer2, bImg->PixelBuffer->Length, pBuffer, buffer->Length);
 
 			ImageControl->Source = bImg;
+			capturePhoto();
 		});
 
 	});
