@@ -12,7 +12,6 @@ namespace Windows {
     namespace UI {
         namespace Xaml {
             namespace Controls {
-                ref class CaptureElement;
                 ref class Image;
             }
         }
@@ -31,7 +30,7 @@ namespace Wp81CodeScanner
     private:
         bool _contentLoaded;
     
-        private: ::Windows::UI::Xaml::Controls::CaptureElement^ PreviewControl;
+        private: ::Windows::UI::Xaml::Controls::Image^ previewImage;
         private: ::Windows::UI::Xaml::Controls::Image^ ImageControl;
     };
 }

@@ -25,13 +25,14 @@ using namespace concurrency;
 using namespace Windows::UI::Xaml::Media::Imaging;
 using namespace Windows::Graphics::Imaging;
 using namespace Windows::Storage::Streams;
+using namespace Lumia::Imaging;
 
 
 // The Blank Page item template is documented at http://go.microsoft.com/fwlink/?LinkId=234238
 
 MainPage::MainPage() 
-	: _mediaCapture(nullptr)
-	, _displayRequest(ref new Windows::System::Display::DisplayRequest())
+	: _cameraPreviewImageSource(nullptr)
+	, _isRendering(false)
 {
 	InitializeComponent();
 }
@@ -53,11 +54,8 @@ void MainPage::OnNavigatedTo(NavigationEventArgs^ e)
 	// If you are using the NavigationHelper provided by some templates,
 	// this event is handled for you.
 
-	// https://github.com/microsoft/Windows-universal-samples/blob/main/Samples/HolographicMixedRealityCapture/cpp/MediaCaptureManager.cpp
-	// https://github.com/Microsoft/Windows-universal-samples/blob/main/Samples/HolographicFaceTracking/cpp/Content/VideoFrameProcessor.cpp
-	// https://stackoverflow.com/questions/44468297/how-to-know-that-camera-is-currently-being-used-by-another-application-with-uwp
-	// https://github.com/microsoft/Windows-universal-samples/blob/main/Samples/CameraGetPreviewFrame/cpp/MainPage.xaml.cpp
-	// https://docs.microsoft.com/en-us/previous-versions/windows/apps/dn642092(v=win.10)
+	//https://stackoverflow.com/questions/27394751/how-to-get-preview-buffer-of-mediacapture-universal-app
+	//https://stackoverflow.com/questions/29947225/access-preview-frame-from-mediacapture
 
 }
 
@@ -76,166 +74,66 @@ void Debug(const char* format, ...)
 
 void MainPage::Button_Start_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e)
 {
-	_mediaCapture = ref new Windows::Media::Capture::MediaCapture();
-	MediaCaptureInitializationSettings^ settings = ref new MediaCaptureInitializationSettings();
-	settings->StreamingCaptureMode = StreamingCaptureMode::Video;
-	settings->PhotoCaptureSource = PhotoCaptureSource::VideoPreview;
-
-	create_task(_mediaCapture->InitializeAsync(settings))
-		.then([this](task<void> previousTask) {
-		try
-		{
+	_cameraPreviewImageSource = ref new CameraPreviewImageSource();
+	create_task(_cameraPreviewImageSource->InitializeAsync(""))
+		.then([=](task<void> previousTask) {
 			previousTask.get();
-			_displayRequest->RequestActive();
-			//Windows::Graphics::Display::DisplayInformation::AutoRotationPreferences = Windows::Graphics::Display::DisplayOrientations::Landscape;
-			PreviewControl->Source = _mediaCapture.Get();
+			create_task(_cameraPreviewImageSource->StartPreviewAsync())
+				.then([=](MediaProperties::VideoEncodingProperties^ vep) {
 
-			//https://docs.microsoft.com/en-us/windows/uwp/audio-video-camera/get-a-preview-frame
-			Windows::Media::MediaProperties::VideoEncodingProperties^ previewProperties = (Windows::Media::MediaProperties::VideoEncodingProperties^)_mediaCapture->VideoDeviceController->GetMediaStreamProperties(MediaStreamType::VideoPreview);
-			Debug("*********** test ****************\n"); 
-			Debug("Width: %d\n", previewProperties->Width);
-			Debug("Height: %d\n", previewProperties->Height);
+				Debug("Biterate %d\n", vep->Bitrate);
+				Debug("FrameRate %d/%d\n", vep->FrameRate->Numerator, vep->FrameRate->Denominator);
+				Debug("Width %d\n", vep->Width);
+				Debug("Height %d\n", vep->Height);
+				Debug("Type ");OutputDebugString(vep->Type->Data()); Debug("\n");
+				Debug("Subtype "); OutputDebugString(vep->Subtype->Data()); Debug("\n");
 
-			create_task(_mediaCapture->StartPreviewAsync())
-				.then([this](task<void>& previousTask)
-			{
-				try
-				{
-					previousTask.get();
+				_writeableBitmap = ref new WriteableBitmap(vep->Width, vep->Height);
+				_effect = ref new FilterEffect(_cameraPreviewImageSource);
+				_writeableBitmapRenderer = ref new WriteableBitmapRenderer(_effect, _writeableBitmap);
 
-					Debug("FocusControl Supported: %d\n", _mediaCapture->VideoDeviceController->FocusControl->Supported);
-					Windows::Media::Devices::FocusControl^ fc = _mediaCapture->VideoDeviceController->FocusControl;
-					Windows::Media::Devices::FocusSettings ^fs = ref new Windows::Media::Devices::FocusSettings();
-					// Manual macro focus
-					fs->Mode = Windows::Media::Devices::FocusMode::Manual;
-					fs->DisableDriverFallback = true;
-					fs->Value = fc->Min;
-					create_task(fc->LockAsync())
-						.then([=](task<void>& previousTask)
-					{
-						previousTask.get();
-						fc->Configure(fs);
-						create_task(fc->FocusAsync())
-							.then([=](task<void>& previousTask)
-						{
-							previousTask.get();
-
-							Debug("PhotoSequence Supported: %d\n", _mediaCapture->VideoDeviceController->LowLagPhotoSequence->Supported);
-
-							//Windows::Media::MediaProperties::ImageEncodingProperties^ imgEncProp = Windows::Media::MediaProperties::ImageEncodingProperties::CreateUncompressed(Windows::Media::MediaProperties::MediaPixelFormat::Bgra8);
-							// https://docs.microsoft.com/en-us/windows/win32/medfound/recommended-8-bit-yuv-formats-for-video-rendering?redirectedfrom=MSDN
-							Windows::Media::MediaProperties::ImageEncodingProperties^ imgEncProp = Windows::Media::MediaProperties::ImageEncodingProperties::CreateUncompressed(Windows::Media::MediaProperties::MediaPixelFormat::Nv12);
-							imgEncProp->Width = 1280;
-							imgEncProp->Height = 720;
-							create_task(_mediaCapture->PrepareLowLagPhotoCaptureAsync(imgEncProp))
-								.then([this](LowLagPhotoCapture^ photoCapture)
-							{
-								_photoCapture = photoCapture;
-							});
-						});
-					});
-				}
-				catch (Exception^ exception)
-				{
-					if (exception->HResult == 0x80070020)
-					{
-						auto messageDialog = ref new Windows::UI::Popups::MessageDialog("Cannot setup camera; currently being using.");
-						create_task(messageDialog->ShowAsync());
-					}
-				}
+				_cameraPreviewImageSource->PreviewFrameAvailable += ref new Lumia::Imaging::PreviewFrameAvailableDelegate(this, &MainPage::OnPreviewFrameAvailable);
 			});
-		}
-		catch (AccessDeniedException^)
-		{
-			auto messageDialog = ref new Windows::UI::Popups::MessageDialog("The app was denied access to the camera.");
-			create_task(messageDialog->ShowAsync());
-		}
-	});
+		});
+
 }
 
 void MainPage::Button_Stop_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e)
 {
-	create_task(_photoCapture->FinishAsync());
-	create_task(_mediaCapture->StopPreviewAsync());
-	PreviewControl->Source = nullptr;
-	_displayRequest->RequestRelease();
-	_mediaCapture = nullptr;
+	create_task(_cameraPreviewImageSource->StopPreviewAsync());
 }
 
 void MainPage::Button_Capture_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e)
 {
-	capturePhoto();
+
 }
 
-void MainPage::capturePhoto()
+void MainPage::OnPreviewFrameAvailable(Lumia::Imaging::IImageSize ^imageSize)
 {
-	create_task(_photoCapture->CaptureAsync())
-		.then([this](CapturedPhoto^ photo)
+	// Prevent multiple rendering attempts at once
+	if (_isRendering == false)
 	{
-		Debug("Frame Width: %d\n", photo->Frame->Width);
-		Debug("Frame Height: %d\n", photo->Frame->Height);
-		Debug("Frame Type:"); OutputDebugString(photo->Frame->ContentType->Data()); Debug("\n");
-		Debug("Frame CanRead: %d\n", photo->Frame->CanRead);
-		Debug("Frame CanWrite: %d\n", photo->Frame->CanWrite);
-		Debug("Frame Position: %d\n", photo->Frame->Position);
-		Debug("Frame Size: %d\n", photo->Frame->Size);
-		int width = photo->Frame->Width;
-		int height = photo->Frame->Height;
+		_isRendering = true;
 
-		readBuffer = ref new Buffer(width*height * 4); // Pixel format Bgra8
-		create_task(photo->Frame->ReadAsync(readBuffer, readBuffer->Capacity, InputStreamOptions::Partial))
-			.then([=](task<IBuffer^> readTask)
-		{
-			IBuffer^ bufOrig = readTask.get();
-			Debug("Bytes read from stream : %d\n", bufOrig->Length);
+		Debug("OnPreviewFrameAvailable\n");
 
-			::IUnknown* pUnkOrig{ reinterpret_cast<IUnknown*>(bufOrig) };
-			Microsoft::WRL::ComPtr<Windows::Storage::Streams::IBufferByteAccess> bufferByteAccessOrig;
-			HRESULT hrOrig{ pUnkOrig->QueryInterface(IID_PPV_ARGS(&bufferByteAccessOrig)) };
-			byte *pBufOrig{ nullptr };
-			bufferByteAccessOrig->Buffer(&pBufOrig);
+		create_task(_writeableBitmapRenderer->RenderAsync())
+			.then([=](WriteableBitmap^ wBitmap) {
+			Debug("RenderAsync\n");
+			create_task(Dispatcher->RunAsync(Windows::UI::Core::CoreDispatcherPriority::Normal,
+				ref new Windows::UI::Core::DispatchedHandler([this]()
+			{
+				Debug("callBack\n");
+				Debug("Width %d\n", _writeableBitmap->PixelWidth);
+				previewImage->Source = _writeableBitmap; // previewImage is an image element in MainPage.xaml
+				_writeableBitmap->Invalidate(); // force the PreviewBitmap to redraw
+			}))).then([this]()
+			{
+				_isRendering = false;
+			});
 
-			/*byte *pBufferCpy = pBuffer;
-			*pBufferCpy = 0xFF; ++pBufferCpy;
-			*pBufferCpy = 0xFF; ++pBufferCpy;
-			*pBufferCpy = 0x0; ++pBufferCpy;
-			*pBufferCpy = 0x0;*/
-
-			//FillMemory(pBuffer + 320 * 4 * 120, 320*4, 0);
-
-			//Debug("PixelBuffer 0 BGRA8 0x%02X%02X%02X%02X\n", *(pBufOrig +0), *(pBufOrig +1), *(pBufOrig +2), *(pBufOrig +3));
-			//Debug("PixelBuffer 1000 BGRA8 0x%02X%02X%02X%02X\n", *(pBufOrig +1000), *(pBufOrig + 1001), *(pBufOrig + 1002), *(pBufOrig + 1003));
-			//Debug("PixelBuffer 100000 BGRA8 0x%02X%02X%02X%02X\n", *(pBufOrig + 100000), *(pBufOrig + 100001), *(pBufOrig + 100002), *(pBufOrig + 100003));
-
-
-			WriteableBitmap ^ bImg = ref new WriteableBitmap(width, height);
-			Debug("PixelBuffer Length: %d\n", bImg->PixelBuffer->Length);
-
-			::IUnknown* pUnkDest{ reinterpret_cast<IUnknown*>(bImg->PixelBuffer) };
-			Microsoft::WRL::ComPtr<Windows::Storage::Streams::IBufferByteAccess> bufferByteAccessDest;
-			HRESULT hrDest{ pUnkDest->QueryInterface(IID_PPV_ARGS(&bufferByteAccessDest)) };
-			byte *pBufDest{ nullptr };
-			bufferByteAccessDest->Buffer(&pBufDest);
-
-			for (int i = 0; i < width*height; i++) {
-				// Blue
-				*pBufDest = *(pBufOrig + i);
-				pBufDest++;
-				// Green
-				*pBufDest = *(pBufOrig + i);
-				pBufDest++;
-				// Red
-				*pBufDest = *(pBufOrig + i);
-				pBufDest++;
-				// Alpha
-				*pBufDest = 0xFF;
-				pBufDest++;
-			}
-			//memcpy_s(pBuffer2, bImg->PixelBuffer->Length, pBuffer, buffer->Length);
-
-			ImageControl->Source = bImg;
-			capturePhoto();
 		});
-
-	});
+	}
 }
+
+

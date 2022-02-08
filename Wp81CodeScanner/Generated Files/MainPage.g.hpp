@@ -22,8 +22,8 @@ void ::Wp81CodeScanner::MainPage::InitializeComponent()
     // Call LoadComponent on ms-appx:///MainPage.xaml
     ::Windows::UI::Xaml::Application::LoadComponent(this, ref new ::Windows::Foundation::Uri(L"ms-appx:///MainPage.xaml"), ::Windows::UI::Xaml::Controls::Primitives::ComponentResourceLocation::Application);
 
-    // Get the CaptureElement named 'PreviewControl'
-    PreviewControl = safe_cast<::Windows::UI::Xaml::Controls::CaptureElement^>(static_cast<Windows::UI::Xaml::IFrameworkElement^>(this)->FindName(L"PreviewControl"));
+    // Get the Image named 'previewImage'
+    previewImage = safe_cast<::Windows::UI::Xaml::Controls::Image^>(static_cast<Windows::UI::Xaml::IFrameworkElement^>(this)->FindName(L"previewImage"));
     // Get the Image named 'ImageControl'
     ImageControl = safe_cast<::Windows::UI::Xaml::Controls::Image^>(static_cast<Windows::UI::Xaml::IFrameworkElement^>(this)->FindName(L"ImageControl"));
 }

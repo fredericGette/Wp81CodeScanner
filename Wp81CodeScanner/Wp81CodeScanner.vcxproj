@@ -1,6 +1,5 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|ARM">
       <Configuration>Debug</Configuration>
@@ -19,7 +18,6 @@
       <Platform>Win32</Platform>
     </ProjectConfiguration>
   </ItemGroup>
-
   <PropertyGroup Label="Globals">
     <ProjectGuid>{abc19221-a576-4709-8317-8af489bef81e}</ProjectGuid>
     <Keyword>BlankApp</Keyword>
@@ -30,9 +28,7 @@
     <ApplicationType>Windows Phone</ApplicationType>
     <ApplicationTypeRevision>8.1</ApplicationTypeRevision>
   </PropertyGroup>
-
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
-
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
@@ -55,33 +51,24 @@
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <PlatformToolset>v120_wp81</PlatformToolset>
   </PropertyGroup>
-
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
-
   <ImportGroup Label="ExtensionSettings">
   </ImportGroup>
-
-  <ImportGroup Label="Shared" >
+  <ImportGroup Label="Shared">
   </ImportGroup>
-  
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
-
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
-
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|ARM'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
-
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|ARM'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
-
   <PropertyGroup Label="UserMacros" />
-
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM'">
     <ClCompile>
       <AdditionalOptions>/bigobj %(AdditionalOptions)</AdditionalOptions>
@@ -106,17 +93,15 @@
       <DisableSpecificWarnings>4453;28204</DisableSpecificWarnings>
     </ClCompile>
   </ItemDefinitionGroup>
-
   <ItemGroup>
     <ClInclude Include="pch.h" />
     <ClInclude Include="App.xaml.h">
-        <DependentUpon>App.xaml</DependentUpon>
+      <DependentUpon>App.xaml</DependentUpon>
     </ClInclude>
     <ClInclude Include="MainPage.xaml.h">
-        <DependentUpon>MainPage.xaml</DependentUpon>
+      <DependentUpon>MainPage.xaml</DependentUpon>
     </ClInclude>
   </ItemGroup>
-
   <ItemGroup>
     <ApplicationDefinition Include="App.xaml">
       <SubType>Designer</SubType>
@@ -125,13 +110,11 @@
       <SubType>Designer</SubType>
     </Page>
   </ItemGroup>
-
   <ItemGroup>
     <AppxManifest Include="Package.appxmanifest">
       <SubType>Designer</SubType>
     </AppxManifest>
   </ItemGroup>
-
   <ItemGroup>
     <Image Include="Assets\Logo.scale-240.png" />
     <Image Include="Assets\SmallLogo.scale-240.png" />
@@ -140,15 +123,13 @@
     <Image Include="Assets\StoreLogo.scale-240.png" />
     <Image Include="Assets\WideLogo.scale-240.png" />
   </ItemGroup>
-
   <ItemGroup>
     <ClCompile Include="App.xaml.cpp">
-        <DependentUpon>App.xaml</DependentUpon>
+      <DependentUpon>App.xaml</DependentUpon>
     </ClCompile>
     <ClCompile Include="MainPage.xaml.cpp">
-        <DependentUpon>MainPage.xaml</DependentUpon>
+      <DependentUpon>MainPage.xaml</DependentUpon>
     </ClCompile>
-
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
@@ -156,10 +137,17 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|ARM'">Create</PrecompiledHeader>
     </ClCompile>
   </ItemGroup>
-
+  <ItemGroup>
+    <None Include="packages.config" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
-
   <ImportGroup Label="ExtensionTargets">
+    <Import Project="..\packages\LumiaImagingSDK.2.0.208\build\native\LumiaImagingSDK.targets" Condition="Exists('..\packages\LumiaImagingSDK.2.0.208\build\native\LumiaImagingSDK.targets')" />
   </ImportGroup>
-
+  <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
+    <PropertyGroup>
+      <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
+    </PropertyGroup>
+    <Error Condition="!Exists('..\packages\LumiaImagingSDK.2.0.208\build\native\LumiaImagingSDK.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\LumiaImagingSDK.2.0.208\build\native\LumiaImagingSDK.targets'))" />
+  </Target>
 </Project>
