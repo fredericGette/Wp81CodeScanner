@@ -158,11 +158,22 @@ void MainPage::OnPreviewFrameAvailable(Lumia::Imaging::IImageSize ^imageSize)
 					pBufDest++;
 				}
 
+				
+	
 				BarcodeReader^ reader = ref new BarcodeReader();
-				reader->AutoRotate = true;
-				Result^ result = reader->DecodeBitmap(_writeableBitmap);
+				//reader->AutoRotate = true;
+				ZXing::Common::DecodingOptions^ options = ref new ZXing::Common::DecodingOptions();
+				options->TryHarder = true;
+				options->PossibleFormats = ref new Platform::Array<ZXing::BarcodeFormat>(1);
+				options->PossibleFormats[0] = ZXing::BarcodeFormat::CODE_39;
+				reader->Options = options;
+				Platform::Array<unsigned char>^ arrByte = ref new Platform::Array<unsigned char>(pBufOrig, 1280 * 720);
+				Result^ result = reader->Decode(arrByte, 1280,720, BitmapFormat::Gray8);
+				//Result^ result = reader->DecodeBitmap(_writeableBitmap);
 				if (result) {
 					Debug("Result "); OutputDebugString(result->Text->Data()); Debug("\n");
+					// CODE_39 = 4 
+					Debug("BarcodeFormat %d\n", result->BarcodeFormat);
 				}
 				else {
 					Debug("No result\n");
