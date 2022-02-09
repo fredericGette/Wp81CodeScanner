@@ -24,8 +24,6 @@ namespace Wp81CodeScanner
 		Lumia::Imaging::CameraPreviewImageSource^ _cameraPreviewImageSource;
 		bool _isRendering;
 		Windows::UI::Xaml::Media::Imaging::WriteableBitmap^ _writeableBitmap;
-		Lumia::Imaging::FilterEffect^ _effect;
-		Lumia::Imaging::WriteableBitmapRenderer^ _writeableBitmapRenderer; // renderer for our images
 
 		void Button_Start_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e);
 		void Button_Capture_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e);

@@ -89,8 +89,6 @@ void MainPage::Button_Start_Click(Platform::Object^ sender, Windows::UI::Xaml::R
 				Debug("Subtype "); OutputDebugString(vep->Subtype->Data()); Debug("\n");
 
 				_writeableBitmap = ref new WriteableBitmap(vep->Width, vep->Height);
-				_effect = ref new FilterEffect(_cameraPreviewImageSource);
-				_writeableBitmapRenderer = ref new WriteableBitmapRenderer(_effect, _writeableBitmap);
 
 				_cameraPreviewImageSource->PreviewFrameAvailable += ref new Lumia::Imaging::PreviewFrameAvailableDelegate(this, &MainPage::OnPreviewFrameAvailable);
 			});
@@ -117,16 +115,51 @@ void MainPage::OnPreviewFrameAvailable(Lumia::Imaging::IImageSize ^imageSize)
 
 		Debug("OnPreviewFrameAvailable\n");
 
-		create_task(_writeableBitmapRenderer->RenderAsync())
-			.then([=](WriteableBitmap^ wBitmap) {
+		create_task(_cameraPreviewImageSource->GetBitmapAsync(nullptr, OutputOption::PreserveSize))
+			.then([=](Bitmap^ bitmap) {
+		//create_task(_writeableBitmapRenderer->RenderAsync())
+		//	.then([=](WriteableBitmap^ wBitmap) {
 			Debug("RenderAsync\n");
 			create_task(Dispatcher->RunAsync(Windows::UI::Core::CoreDispatcherPriority::Normal,
-				ref new Windows::UI::Core::DispatchedHandler([this]()
+				ref new Windows::UI::Core::DispatchedHandler([=]()
 			{
 				Debug("callBack\n");
-				Debug("Width %d\n", _writeableBitmap->PixelWidth);
-				previewImage->Source = _writeableBitmap; // previewImage is an image element in MainPage.xaml
+				Debug("Width %d\n", bitmap->Dimensions.Width);
+				Debug("Number of buffers %d\n", bitmap->Buffers->Length);
+				Debug("Pitch %d\n", bitmap->Buffers->get(0)->Pitch);
+				// buffer 0: Y
+				// buffer 1: UV
+				Debug("ColorMode %d\n", bitmap->Buffers->get(0)->ColorMode);
+				IBuffer^ buffer = bitmap->Buffers->get(0)->Buffer;
+
+				::IUnknown* pUnkOrig{ reinterpret_cast<IUnknown*>(buffer) };
+				Microsoft::WRL::ComPtr<Windows::Storage::Streams::IBufferByteAccess> bufferByteAccessOrig;
+				HRESULT hrOrig{ pUnkOrig->QueryInterface(IID_PPV_ARGS(&bufferByteAccessOrig)) };
+				byte *pBufOrig{ nullptr };
+				bufferByteAccessOrig->Buffer(&pBufOrig);
+
+				::IUnknown* pUnkDest{ reinterpret_cast<IUnknown*>(_writeableBitmap->PixelBuffer) };
+				Microsoft::WRL::ComPtr<Windows::Storage::Streams::IBufferByteAccess> bufferByteAccessDest;
+				HRESULT hrDest{ pUnkDest->QueryInterface(IID_PPV_ARGS(&bufferByteAccessDest)) };
+				byte *pBufDest{ nullptr };
+				bufferByteAccessDest->Buffer(&pBufDest);
+				for (int i = 0; i < 1280*720; i++) {
+					// Blue
+					*pBufDest = *(pBufOrig + i);
+					pBufDest++;
+					// Green
+					*pBufDest = *(pBufOrig + i);
+					pBufDest++;
+					// Red
+					*pBufDest = *(pBufOrig + i);
+					pBufDest++;
+					// Alpha
+					*pBufDest = 0xFF;
+					pBufDest++;
+				}
+				previewImage->Source = _writeableBitmap;
 				_writeableBitmap->Invalidate(); // force the PreviewBitmap to redraw
+
 			}))).then([this]()
 			{
 				_isRendering = false;
