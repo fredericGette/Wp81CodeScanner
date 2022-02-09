@@ -45,5 +45,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
+    <None Include="$(MSBuildThisFileDirectory)\..\..\content\$(MappedPlatformToolset)\Help\Lumia Imaging SDK.chm" />
   </ItemGroup>
 </Project>

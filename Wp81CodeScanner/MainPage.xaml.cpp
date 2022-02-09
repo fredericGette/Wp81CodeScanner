@@ -26,6 +26,7 @@ using namespace Windows::UI::Xaml::Media::Imaging;
 using namespace Windows::Graphics::Imaging;
 using namespace Windows::Storage::Streams;
 using namespace Lumia::Imaging;
+using namespace ZXing;
 
 
 // The Blank Page item template is documented at http://go.microsoft.com/fwlink/?LinkId=234238
@@ -56,7 +57,6 @@ void MainPage::OnNavigatedTo(NavigationEventArgs^ e)
 
 	//https://stackoverflow.com/questions/27394751/how-to-get-preview-buffer-of-mediacapture-universal-app
 	//https://stackoverflow.com/questions/29947225/access-preview-frame-from-mediacapture
-
 }
 
 void Debug(const char* format, ...)
@@ -113,23 +113,23 @@ void MainPage::OnPreviewFrameAvailable(Lumia::Imaging::IImageSize ^imageSize)
 	{
 		_isRendering = true;
 
-		Debug("OnPreviewFrameAvailable\n");
+		//Debug("OnPreviewFrameAvailable\n");
 
 		create_task(_cameraPreviewImageSource->GetBitmapAsync(nullptr, OutputOption::PreserveSize))
 			.then([=](Bitmap^ bitmap) {
 		//create_task(_writeableBitmapRenderer->RenderAsync())
 		//	.then([=](WriteableBitmap^ wBitmap) {
-			Debug("RenderAsync\n");
+			//Debug("RenderAsync\n");
 			create_task(Dispatcher->RunAsync(Windows::UI::Core::CoreDispatcherPriority::Normal,
 				ref new Windows::UI::Core::DispatchedHandler([=]()
 			{
-				Debug("callBack\n");
-				Debug("Width %d\n", bitmap->Dimensions.Width);
-				Debug("Number of buffers %d\n", bitmap->Buffers->Length);
-				Debug("Pitch %d\n", bitmap->Buffers->get(0)->Pitch);
+				//Debug("callBack\n");
+				//Debug("Width %d\n", bitmap->Dimensions.Width);
+				//Debug("Number of buffers %d\n", bitmap->Buffers->Length);
+				//Debug("Pitch %d\n", bitmap->Buffers->get(0)->Pitch);
 				// buffer 0: Y
 				// buffer 1: UV
-				Debug("ColorMode %d\n", bitmap->Buffers->get(0)->ColorMode);
+				//Debug("ColorMode %d\n", bitmap->Buffers->get(0)->ColorMode);
 				IBuffer^ buffer = bitmap->Buffers->get(0)->Buffer;
 
 				::IUnknown* pUnkOrig{ reinterpret_cast<IUnknown*>(buffer) };
@@ -157,6 +157,17 @@ void MainPage::OnPreviewFrameAvailable(Lumia::Imaging::IImageSize ^imageSize)
 					*pBufDest = 0xFF;
 					pBufDest++;
 				}
+
+				BarcodeReader^ reader = ref new BarcodeReader();
+				reader->AutoRotate = true;
+				Result^ result = reader->DecodeBitmap(_writeableBitmap);
+				if (result) {
+					Debug("Result "); OutputDebugString(result->Text->Data()); Debug("\n");
+				}
+				else {
+					Debug("No result\n");
+				}
+
 				previewImage->Source = _writeableBitmap;
 				_writeableBitmap->Invalidate(); // force the PreviewBitmap to redraw
 
