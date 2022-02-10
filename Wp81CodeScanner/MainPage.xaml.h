@@ -24,9 +24,11 @@ namespace Wp81CodeScanner
 		Lumia::Imaging::CameraPreviewImageSource^ _cameraPreviewImageSource;
 		bool _isRendering;
 		Windows::UI::Xaml::Media::Imaging::WriteableBitmap^ _writeableBitmap;
+		unsigned char frameCounter;
+		ZXing::BarcodeReader^ _reader;
 
 		void Button_Start_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e);
-		void Button_Capture_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e);
+		void StartPreview();
 		void Button_Stop_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e);
 		void OnPreviewFrameAvailable(Lumia::Imaging::IImageSize ^imageSize);
 	};

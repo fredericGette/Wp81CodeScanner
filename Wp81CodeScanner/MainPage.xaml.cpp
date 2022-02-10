@@ -6,6 +6,7 @@
 #include "pch.h"
 #include "MainPage.xaml.h"
 #include <robuffer.h>
+#include <string>
 
 using namespace Wp81CodeScanner;
 
@@ -27,13 +28,16 @@ using namespace Windows::Graphics::Imaging;
 using namespace Windows::Storage::Streams;
 using namespace Lumia::Imaging;
 using namespace ZXing;
+using namespace std;
 
 
 // The Blank Page item template is documented at http://go.microsoft.com/fwlink/?LinkId=234238
 
-MainPage::MainPage() 
+MainPage::MainPage()
 	: _cameraPreviewImageSource(nullptr)
 	, _isRendering(false)
+	, frameCounter(0)
+	, _reader(nullptr)
 {
 	InitializeComponent();
 }
@@ -57,6 +61,10 @@ void MainPage::OnNavigatedTo(NavigationEventArgs^ e)
 
 	//https://stackoverflow.com/questions/27394751/how-to-get-preview-buffer-of-mediacapture-universal-app
 	//https://stackoverflow.com/questions/29947225/access-preview-frame-from-mediacapture
+
+	Windows::Graphics::Display::DisplayInformation::AutoRotationPreferences = Windows::Graphics::Display::DisplayOrientations::Landscape;
+
+	StartPreview();
 }
 
 void Debug(const char* format, ...)
@@ -74,10 +82,15 @@ void Debug(const char* format, ...)
 
 void MainPage::Button_Start_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e)
 {
+}
+
+void MainPage::StartPreview()
+{
 	_cameraPreviewImageSource = ref new CameraPreviewImageSource();
 	create_task(_cameraPreviewImageSource->InitializeAsync(""))
 		.then([=](task<void> previousTask) {
 			previousTask.get();
+
 			create_task(_cameraPreviewImageSource->StartPreviewAsync())
 				.then([=](MediaProperties::VideoEncodingProperties^ vep) {
 
@@ -89,8 +102,35 @@ void MainPage::Button_Start_Click(Platform::Object^ sender, Windows::UI::Xaml::R
 				Debug("Subtype "); OutputDebugString(vep->Subtype->Data()); Debug("\n");
 
 				_writeableBitmap = ref new WriteableBitmap(vep->Width, vep->Height);
+				
+				_reader = ref new BarcodeReader();
+				//reader->AutoRotate = true;
+				ZXing::Common::DecodingOptions^ options = ref new ZXing::Common::DecodingOptions();
+				//options->TryHarder = true;
+				options->PossibleFormats = ref new Platform::Array<ZXing::BarcodeFormat>(1);
+				options->PossibleFormats[0] = ZXing::BarcodeFormat::QR_CODE;
+				_reader->Options = options;
 
 				_cameraPreviewImageSource->PreviewFrameAvailable += ref new Lumia::Imaging::PreviewFrameAvailableDelegate(this, &MainPage::OnPreviewFrameAvailable);
+				
+				Windows::Media::Devices::VideoDeviceController^ vdc = (Windows::Media::Devices::VideoDeviceController^)_cameraPreviewImageSource->VideoDeviceController;
+				Windows::Media::Devices::FocusControl^ fc = vdc->FocusControl;
+				Windows::Media::Devices::FocusSettings ^fs = ref new Windows::Media::Devices::FocusSettings();
+				// Manual minimal focus distance
+				fs->Mode = Windows::Media::Devices::FocusMode::Manual;
+				fs->DisableDriverFallback = true;
+				fs->Value = fc->Min;
+				create_task(fc->LockAsync())
+					.then([=](task<void>& previousTask)
+				{
+					previousTask.get();
+					fc->Configure(fs);
+					create_task(fc->FocusAsync())
+						.then([=](task<void>& previousTask)
+					{
+						previousTask.get();
+					});
+				});
 			});
 		});
 
@@ -101,13 +141,10 @@ void MainPage::Button_Stop_Click(Platform::Object^ sender, Windows::UI::Xaml::Ro
 	create_task(_cameraPreviewImageSource->StopPreviewAsync());
 }
 
-void MainPage::Button_Capture_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e)
-{
-
-}
-
 void MainPage::OnPreviewFrameAvailable(Lumia::Imaging::IImageSize ^imageSize)
 {
+	frameCounter++;
+
 	// Prevent multiple rendering attempts at once
 	if (_isRendering == false)
 	{
@@ -158,26 +195,17 @@ void MainPage::OnPreviewFrameAvailable(Lumia::Imaging::IImageSize ^imageSize)
 					pBufDest++;
 				}
 
-				
-	
-				BarcodeReader^ reader = ref new BarcodeReader();
-				//reader->AutoRotate = true;
-				ZXing::Common::DecodingOptions^ options = ref new ZXing::Common::DecodingOptions();
-				options->TryHarder = true;
-				options->PossibleFormats = ref new Platform::Array<ZXing::BarcodeFormat>(1);
-				options->PossibleFormats[0] = ZXing::BarcodeFormat::CODE_39;
-				reader->Options = options;
 				Platform::Array<unsigned char>^ arrByte = ref new Platform::Array<unsigned char>(pBufOrig, 1280 * 720);
-				Result^ result = reader->Decode(arrByte, 1280,720, BitmapFormat::Gray8);
-				//Result^ result = reader->DecodeBitmap(_writeableBitmap);
+				Result^ result = _reader->Decode(arrByte, 1280,720, BitmapFormat::Gray8);
+				wstring text = L"";
 				if (result) {
-					Debug("Result "); OutputDebugString(result->Text->Data()); Debug("\n");
-					// CODE_39 = 4 
-					Debug("BarcodeFormat %d\n", result->BarcodeFormat);
+					text = text + to_wstring(frameCounter) + L" Result " + result->Text->Data() + L" BarcodeFormat " + to_wstring((int)result->BarcodeFormat) + L"\n";
 				}
 				else {
-					Debug("No result\n");
+					text = text + to_wstring(frameCounter) + L" No result\n";
 				}
+				OutputDebugString(text.c_str());
+				TextBoxResult->Text = ref new String(text.c_str());
 
 				previewImage->Source = _writeableBitmap;
 				_writeableBitmap->Invalidate(); // force the PreviewBitmap to redraw

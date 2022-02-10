@@ -24,8 +24,8 @@ void ::Wp81CodeScanner::MainPage::InitializeComponent()
 
     // Get the Image named 'previewImage'
     previewImage = safe_cast<::Windows::UI::Xaml::Controls::Image^>(static_cast<Windows::UI::Xaml::IFrameworkElement^>(this)->FindName(L"previewImage"));
-    // Get the Image named 'ImageControl'
-    ImageControl = safe_cast<::Windows::UI::Xaml::Controls::Image^>(static_cast<Windows::UI::Xaml::IFrameworkElement^>(this)->FindName(L"ImageControl"));
+    // Get the TextBox named 'TextBoxResult'
+    TextBoxResult = safe_cast<::Windows::UI::Xaml::Controls::TextBox^>(static_cast<Windows::UI::Xaml::IFrameworkElement^>(this)->FindName(L"TextBoxResult"));
 }
 
 void ::Wp81CodeScanner::MainPage::Connect(int connectionId, Platform::Object^ target)
@@ -33,14 +33,6 @@ void ::Wp81CodeScanner::MainPage::Connect(int connectionId, Platform::Object^ ta
     switch (connectionId)
     {
     case 1:
-        (safe_cast<::Windows::UI::Xaml::Controls::Primitives::ButtonBase^>(target))->Click +=
-            ref new ::Windows::UI::Xaml::RoutedEventHandler(this, (void (::Wp81CodeScanner::MainPage::*)(Platform::Object^, Windows::UI::Xaml::RoutedEventArgs^))&MainPage::Button_Start_Click);
-        break;
-    case 2:
-        (safe_cast<::Windows::UI::Xaml::Controls::Primitives::ButtonBase^>(target))->Click +=
-            ref new ::Windows::UI::Xaml::RoutedEventHandler(this, (void (::Wp81CodeScanner::MainPage::*)(Platform::Object^, Windows::UI::Xaml::RoutedEventArgs^))&MainPage::Button_Capture_Click);
-        break;
-    case 3:
         (safe_cast<::Windows::UI::Xaml::Controls::Primitives::ButtonBase^>(target))->Click +=
             ref new ::Windows::UI::Xaml::RoutedEventHandler(this, (void (::Wp81CodeScanner::MainPage::*)(Platform::Object^, Windows::UI::Xaml::RoutedEventArgs^))&MainPage::Button_Stop_Click);
         break;

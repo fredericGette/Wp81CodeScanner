@@ -13,6 +13,7 @@ namespace Windows {
         namespace Xaml {
             namespace Controls {
                 ref class Image;
+                ref class TextBox;
             }
         }
     }
@@ -31,7 +32,7 @@ namespace Wp81CodeScanner
         bool _contentLoaded;
     
         private: ::Windows::UI::Xaml::Controls::Image^ previewImage;
-        private: ::Windows::UI::Xaml::Controls::Image^ ImageControl;
+        private: ::Windows::UI::Xaml::Controls::TextBox^ TextBoxResult;
     };
 }
 
