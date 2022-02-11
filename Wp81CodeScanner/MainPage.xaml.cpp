@@ -35,9 +35,13 @@ using namespace std;
 
 MainPage::MainPage()
 	: _cameraPreviewImageSource(nullptr)
+	, _bitmap(nullptr)
+	, _bitmapRenderer(nullptr)
 	, _isRendering(false)
 	, frameCounter(0)
 	, _reader(nullptr)
+	, pBufOrig(nullptr)
+	, pBufDest(nullptr)
 {
 	InitializeComponent();
 }
@@ -80,10 +84,6 @@ void Debug(const char* format, ...)
 	va_end(args);
 }
 
-void MainPage::Button_Start_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e)
-{
-}
-
 void MainPage::StartPreview()
 {
 	_cameraPreviewImageSource = ref new CameraPreviewImageSource();
@@ -102,6 +102,20 @@ void MainPage::StartPreview()
 				Debug("Subtype "); OutputDebugString(vep->Subtype->Data()); Debug("\n");
 
 				_writeableBitmap = ref new WriteableBitmap(vep->Width, vep->Height);
+				_bitmap = ref new Bitmap(Size(1280, 720), ColorMode::Yuv420Sp);
+				_bitmapRenderer = ref new BitmapRenderer(_cameraPreviewImageSource, _bitmap);
+
+				IBuffer^ buffer = _bitmap->Buffers->get(0)->Buffer;
+				::IUnknown* pUnkOrig{ reinterpret_cast<IUnknown*>(buffer) };
+				Microsoft::WRL::ComPtr<Windows::Storage::Streams::IBufferByteAccess> bufferByteAccessOrig;
+				HRESULT hrOrig{ pUnkOrig->QueryInterface(IID_PPV_ARGS(&bufferByteAccessOrig)) };
+				bufferByteAccessOrig->Buffer(&pBufOrig);
+
+				::IUnknown* pUnkDest{ reinterpret_cast<IUnknown*>(_writeableBitmap->PixelBuffer) };
+				Microsoft::WRL::ComPtr<Windows::Storage::Streams::IBufferByteAccess> bufferByteAccessDest;
+				HRESULT hrDest{ pUnkDest->QueryInterface(IID_PPV_ARGS(&bufferByteAccessDest)) };
+				bufferByteAccessDest->Buffer(&pBufDest);
+
 				
 				_reader = ref new BarcodeReader();
 				//reader->AutoRotate = true;
@@ -150,10 +164,12 @@ void MainPage::OnPreviewFrameAvailable(Lumia::Imaging::IImageSize ^imageSize)
 	{
 		_isRendering = true;
 
-		//Debug("OnPreviewFrameAvailable\n");
+		//Debug("OnPreviewFrameAvailable %d\n",_bitmap);
 
-		create_task(_cameraPreviewImageSource->GetBitmapAsync(nullptr, OutputOption::PreserveSize))
+		create_task(_bitmapRenderer->RenderAsync())
 			.then([=](Bitmap^ bitmap) {
+		//create_task(_cameraPreviewImageSource->GetBitmapAsync(nullptr, OutputOption::PreserveSize))
+		//	.then([=](Bitmap^ bitmap) {
 		//create_task(_writeableBitmapRenderer->RenderAsync())
 		//	.then([=](WriteableBitmap^ wBitmap) {
 			//Debug("RenderAsync\n");
@@ -161,42 +177,38 @@ void MainPage::OnPreviewFrameAvailable(Lumia::Imaging::IImageSize ^imageSize)
 				ref new Windows::UI::Core::DispatchedHandler([=]()
 			{
 				//Debug("callBack\n");
-				//Debug("Width %d\n", bitmap->Dimensions.Width);
+				//Debug("Width %f\n", bitmap->Dimensions.Width);
+				//Debug("Height %f\n", bitmap->Dimensions.Height);
 				//Debug("Number of buffers %d\n", bitmap->Buffers->Length);
 				//Debug("Pitch %d\n", bitmap->Buffers->get(0)->Pitch);
 				// buffer 0: Y
 				// buffer 1: UV
-				//Debug("ColorMode %d\n", bitmap->Buffers->get(0)->ColorMode);
-				IBuffer^ buffer = bitmap->Buffers->get(0)->Buffer;
+				//Debug("ColorMode buf0 %d\n", bitmap->Buffers->get(0)->ColorMode);
+				//Debug("Pitch buf0 %d\n", bitmap->Buffers->get(0)->Pitch);
+				//Debug("Capacity buf0 %d\n", bitmap->Buffers->get(0)->Buffer->Capacity);
+				//Debug("ColorMode buf1 %d\n", bitmap->Buffers->get(1)->ColorMode);
+				//Debug("Pitch buf1 %d\n", bitmap->Buffers->get(1)->Pitch);
+				//Debug("Capacity buf1 %d\n", bitmap->Buffers->get(1)->Buffer->Capacity);
 
-				::IUnknown* pUnkOrig{ reinterpret_cast<IUnknown*>(buffer) };
-				Microsoft::WRL::ComPtr<Windows::Storage::Streams::IBufferByteAccess> bufferByteAccessOrig;
-				HRESULT hrOrig{ pUnkOrig->QueryInterface(IID_PPV_ARGS(&bufferByteAccessOrig)) };
-				byte *pBufOrig{ nullptr };
-				bufferByteAccessOrig->Buffer(&pBufOrig);
-
-				::IUnknown* pUnkDest{ reinterpret_cast<IUnknown*>(_writeableBitmap->PixelBuffer) };
-				Microsoft::WRL::ComPtr<Windows::Storage::Streams::IBufferByteAccess> bufferByteAccessDest;
-				HRESULT hrDest{ pUnkDest->QueryInterface(IID_PPV_ARGS(&bufferByteAccessDest)) };
-				byte *pBufDest{ nullptr };
-				bufferByteAccessDest->Buffer(&pBufDest);
+				byte *pBufOrig2 = pBufOrig;
+				byte *pBufDest2 = pBufDest;
 				for (int i = 0; i < 1280*720; i++) {
 					// Blue
-					*pBufDest = *(pBufOrig + i);
-					pBufDest++;
+					*pBufDest2 = *(pBufOrig2 + i);
+					pBufDest2++;
 					// Green
-					*pBufDest = *(pBufOrig + i);
-					pBufDest++;
+					*pBufDest2 = *(pBufOrig2 + i);
+					pBufDest2++;
 					// Red
-					*pBufDest = *(pBufOrig + i);
-					pBufDest++;
+					*pBufDest2 = *(pBufOrig2 + i);
+					pBufDest2++;
 					// Alpha
-					*pBufDest = 0xFF;
-					pBufDest++;
+					*pBufDest2 = 0xFF;
+					pBufDest2++;
 				}
 
 				Platform::Array<unsigned char>^ arrByte = ref new Platform::Array<unsigned char>(pBufOrig, 1280 * 720);
-				Result^ result = _reader->Decode(arrByte, 1280,720, BitmapFormat::Gray8);
+				Result^ result = _reader->Decode(arrByte, 1280, 720, BitmapFormat::Gray8);
 				wstring text = L"";
 				if (result) {
 					text = text + to_wstring(frameCounter) + L" Result " + result->Text->Data() + L" BarcodeFormat " + to_wstring((int)result->BarcodeFormat) + L"\n";
