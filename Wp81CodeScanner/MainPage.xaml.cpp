@@ -122,7 +122,8 @@ void MainPage::StartPreview()
 				ZXing::Common::DecodingOptions^ options = ref new ZXing::Common::DecodingOptions();
 				//options->TryHarder = true;
 				options->PossibleFormats = ref new Platform::Array<ZXing::BarcodeFormat>(1);
-				options->PossibleFormats[0] = ZXing::BarcodeFormat::QR_CODE;
+				options->PossibleFormats[0] = ZXing::BarcodeFormat::CODE_128;
+				options->PureBarcode = true;
 				_reader->Options = options;
 
 				_cameraPreviewImageSource->PreviewFrameAvailable += ref new Lumia::Imaging::PreviewFrameAvailableDelegate(this, &MainPage::OnPreviewFrameAvailable);
