@@ -27,7 +27,6 @@ namespace Wp81CodeScanner
 		Windows::UI::Xaml::Media::Imaging::WriteableBitmap^ _writeableBitmap;
 		Lumia::Imaging::Bitmap^ _bitmap;
 		unsigned char frameCounter;
-		ZXing::BarcodeReader^ _reader;
 		byte *pBufOrig;
 		byte *pBufDest;
 

@@ -27,9 +27,10 @@ using namespace Windows::UI::Xaml::Media::Imaging;
 using namespace Windows::Graphics::Imaging;
 using namespace Windows::Storage::Streams;
 using namespace Lumia::Imaging;
-using namespace ZXing;
+using namespace zxing;
 using namespace std;
 
+Ref<Reader> reader;
 
 // The Blank Page item template is documented at http://go.microsoft.com/fwlink/?LinkId=234238
 
@@ -39,7 +40,6 @@ MainPage::MainPage()
 	, _bitmapRenderer(nullptr)
 	, _isRendering(false)
 	, frameCounter(0)
-	, _reader(nullptr)
 	, pBufOrig(nullptr)
 	, pBufDest(nullptr)
 {
@@ -101,6 +101,7 @@ void MainPage::StartPreview()
 				Debug("Type ");OutputDebugString(vep->Type->Data()); Debug("\n");
 				Debug("Subtype "); OutputDebugString(vep->Subtype->Data()); Debug("\n");
 
+
 				_writeableBitmap = ref new WriteableBitmap(vep->Width, vep->Height);
 				_bitmap = ref new Bitmap(Size(1280, 720), ColorMode::Yuv420Sp);
 				_bitmapRenderer = ref new BitmapRenderer(_cameraPreviewImageSource, _bitmap);
@@ -117,15 +118,7 @@ void MainPage::StartPreview()
 				bufferByteAccessDest->Buffer(&pBufDest);
 
 				
-				_reader = ref new BarcodeReader();
-				//reader->AutoRotate = true;
-				ZXing::Common::DecodingOptions^ options = ref new ZXing::Common::DecodingOptions();
-				//options->TryHarder = true;
-				options->PossibleFormats = ref new Platform::Array<ZXing::BarcodeFormat>(1);
-				options->PossibleFormats[0] = ZXing::BarcodeFormat::CODE_128;
-				options->PureBarcode = true;
-				_reader->Options = options;
-
+				
 				_cameraPreviewImageSource->PreviewFrameAvailable += ref new Lumia::Imaging::PreviewFrameAvailableDelegate(this, &MainPage::OnPreviewFrameAvailable);
 				
 				Windows::Media::Devices::VideoDeviceController^ vdc = (Windows::Media::Devices::VideoDeviceController^)_cameraPreviewImageSource->VideoDeviceController;
@@ -191,8 +184,8 @@ void MainPage::OnPreviewFrameAvailable(Lumia::Imaging::IImageSize ^imageSize)
 				//Debug("Pitch buf1 %d\n", bitmap->Buffers->get(1)->Pitch);
 				//Debug("Capacity buf1 %d\n", bitmap->Buffers->get(1)->Buffer->Capacity);
 
-				byte *pBufOrig2 = pBufOrig;
-				byte *pBufDest2 = pBufDest;
+				BYTE *pBufOrig2 = pBufOrig;
+				BYTE *pBufDest2 = pBufDest;
 				for (int i = 0; i < 1280*720; i++) {
 					// Blue
 					*pBufDest2 = *(pBufOrig2 + i);
@@ -207,18 +200,29 @@ void MainPage::OnPreviewFrameAvailable(Lumia::Imaging::IImageSize ^imageSize)
 					*pBufDest2 = 0xFF;
 					pBufDest2++;
 				}
+				char *test = (char*)pBufOrig;
+				ArrayRef<char> test2 = zxing::ArrayRef<char>(test, 1280*720);
 
-				Platform::Array<unsigned char>^ arrByte = ref new Platform::Array<unsigned char>(pBufOrig, 1280 * 720);
-				Result^ result = _reader->Decode(arrByte, 1280, 720, BitmapFormat::Gray8);
-				wstring text = L"";
-				if (result) {
-					text = text + to_wstring(frameCounter) + L" Result " + result->Text->Data() + L" BarcodeFormat " + to_wstring((int)result->BarcodeFormat) + L"\n";
+				Ref<LuminanceSource> source(new GreyscaleLuminanceSource(test2, 1280, 720, 0, 0, 1280, 720));
+				Ref<Binarizer> binarizer(new HybridBinarizer(source));
+
+				Ref<BinaryBitmap> image(new BinaryBitmap(binarizer));
+				DecodeHints hints(DecodeHints::CODE_128_HINT);
+
+				reader = new zxing::oned::MultiFormatOneDReader(hints);
+				try {
+					Ref<Result> result = reader->decode(image, hints);
+					Ref<zxing::String> text = result->getText();
+					
+					Debug("Result: %s\n", text->getText().c_str());
+					std::string sTxt =text->getText();
+					std::wstring w_str = to_wstring(frameCounter) + L" " + std::wstring(sTxt.begin(), sTxt.end());
+					TextBoxResult->Text = ref new Platform::String(w_str.c_str());
 				}
-				else {
-					text = text + to_wstring(frameCounter) + L" No result\n";
+				catch (zxing::NotFoundException const& ignored) {
+					(void)ignored;
+					Debug("NotFoundException\n");
 				}
-				OutputDebugString(text.c_str());
-				TextBoxResult->Text = ref new String(text.c_str());
 
 				previewImage->Source = _writeableBitmap;
 				_writeableBitmap->Invalidate(); // force the PreviewBitmap to redraw
