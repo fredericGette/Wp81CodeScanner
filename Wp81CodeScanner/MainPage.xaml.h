@@ -29,6 +29,9 @@ namespace Wp81CodeScanner
 		unsigned char frameCounter;
 		byte *pBufOrig;
 		byte *pBufDest;
+		void NoiseFilter(uint8_t* pBufOrig, int row, int width);
+		void NoiseFilterX(uint8_t* pBufOrig, int row, int width);
+		void NoiseFilterY(uint8_t* pBufOrig, int row, int width);
 
 		void StartPreview();
 		void Button_Stop_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e);

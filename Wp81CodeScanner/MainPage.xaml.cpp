@@ -7,6 +7,8 @@
 #include "MainPage.xaml.h"
 #include <robuffer.h>
 #include <string>
+#include <Binarizer.h>
+#include <CodaBarReader.h>
 
 using namespace Wp81CodeScanner;
 
@@ -27,10 +29,7 @@ using namespace Windows::UI::Xaml::Media::Imaging;
 using namespace Windows::Graphics::Imaging;
 using namespace Windows::Storage::Streams;
 using namespace Lumia::Imaging;
-using namespace zxing;
 using namespace std;
-
-Ref<Reader> reader;
 
 // The Blank Page item template is documented at http://go.microsoft.com/fwlink/?LinkId=234238
 
@@ -82,6 +81,132 @@ void Debug(const char* format, ...)
 	OutputDebugStringA(buffer);
 
 	va_end(args);
+}
+
+void DebugGraph(uint8_t* pBufOrig, uint8_t* pBufDest, int width)
+{
+	for (int x = 0; x < width; x++) {
+		if (x > 0) {
+			// Luminance
+			int y0 = 255 - *(pBufOrig + 360 * 1280 + x - 1) + 400;
+			int y1 = 255 - *(pBufOrig + 360 * 1280 + x) + 400;
+			if (y1 < y0) {
+				int yTmp = y1;
+				y1 = y0;
+				y0 = yTmp;
+			}
+
+			for (int y = y0; y <= y1; y++)
+			{
+				*(pBufDest + x * 4 + y * 1280 * 4) = 0;
+				*(pBufDest + x * 4 + y * 1280 * 4 + 1) = 0;
+				*(pBufDest + x * 4 + y * 1280 * 4 + 2) = 255; // Red
+			}
+		}
+
+		// Luminance threshold
+		int yThrshld = 255 - *(pBufOrig + 361 * 1280 + x) + 400;
+		*(pBufDest + x * 4 + yThrshld * 1280 * 4) = 0;
+		*(pBufDest + x * 4 + yThrshld * 1280 * 4 + 1) = 255; // Green
+		*(pBufDest + x * 4 + yThrshld * 1280 * 4 + 2) = 0;
+
+		// 0
+		*(pBufDest + x * 4 + 400 * 1280 * 4) = 255; // Blue
+		*(pBufDest + x * 4 + 400 * 1280 * 4 + 1) = 0;
+		*(pBufDest + x * 4 + 400 * 1280 * 4 + 2) = 0;
+
+		// 255
+		*(pBufDest + x * 4 + (400 + 255) * 1280 * 4) = 255; // Blue
+		*(pBufDest + x * 4 + (400 + 255) * 1280 * 4 + 1) = 0;
+		*(pBufDest + x * 4 + (400 + 255) * 1280 * 4 + 2) = 0;
+	}
+}
+
+/**
+* Median noise filter 3x3
+*/
+void Wp81CodeScanner::MainPage::NoiseFilter(uint8_t * pBufOrig, int row, int width)
+{
+	NoiseFilterX(pBufOrig, row - 1, width);
+	NoiseFilterX(pBufOrig, row, width);
+	NoiseFilterX(pBufOrig, row + 1, width);
+	NoiseFilterY(pBufOrig, row, width);
+}
+
+/**
+* Median noise filter X axis
+*/
+void Wp81CodeScanner::MainPage::NoiseFilterX(uint8_t * pBufOrig, int row, int width)
+{
+	int offset = row*width;
+	uint8_t l1 = 0;
+	uint8_t l2 = 0;
+	uint8_t l3 = 0;
+	uint8_t lTmp = 0;
+	for (int x = 1; x < width - 1; x++) {
+		l1 = *(pBufOrig + offset + x - 1);
+		l2 = *(pBufOrig + offset + x);
+		l3 = *(pBufOrig + offset + x + 1);
+
+		if (l1 > l2) {
+			lTmp = l2;
+			l2 = l1;
+			l1 = lTmp;
+		}
+
+		if (l1 > l3) {
+			lTmp = l3;
+			l3 = l1;
+			l1 = lTmp;
+		}
+
+		if (l2 > l3) {
+			lTmp = l3;
+			l3 = l2;
+			l2 = lTmp;
+		}
+
+		*(pBufOrig + offset + x) = l2;
+	}
+}
+
+/**
+* Median noise filter Y axis
+*/
+void Wp81CodeScanner::MainPage::NoiseFilterY(uint8_t * pBufOrig, int row, int width)
+{
+	int offset1 = (row - 1)*width;
+	int offset2 = row*width;
+	int offset3 = (row + 1)*width;
+	uint8_t l1 = 0;
+	uint8_t l2 = 0;
+	uint8_t l3 = 0;
+	uint8_t lTmp = 0;
+	for (int x = 0; x < width; x++) {
+		l1 = *(pBufOrig + offset1 + x);
+		l2 = *(pBufOrig + offset2 + x);
+		l3 = *(pBufOrig + offset3 + x);
+
+		if (l1 > l2) {
+			lTmp = l2;
+			l2 = l1;
+			l1 = lTmp;
+		}
+
+		if (l1 > l3) {
+			lTmp = l3;
+			l3 = l1;
+			l1 = lTmp;
+		}
+
+		if (l2 > l3) {
+			lTmp = l3;
+			l3 = l2;
+			l2 = lTmp;
+		}
+
+		*(pBufOrig + offset2 + x) = l2;
+	}
 }
 
 void MainPage::StartPreview()
@@ -162,67 +287,61 @@ void MainPage::OnPreviewFrameAvailable(Lumia::Imaging::IImageSize ^imageSize)
 
 		create_task(_bitmapRenderer->RenderAsync())
 			.then([=](Bitmap^ bitmap) {
-		//create_task(_cameraPreviewImageSource->GetBitmapAsync(nullptr, OutputOption::PreserveSize))
-		//	.then([=](Bitmap^ bitmap) {
-		//create_task(_writeableBitmapRenderer->RenderAsync())
-		//	.then([=](WriteableBitmap^ wBitmap) {
-			//Debug("RenderAsync\n");
 			create_task(Dispatcher->RunAsync(Windows::UI::Core::CoreDispatcherPriority::Normal,
 				ref new Windows::UI::Core::DispatchedHandler([=]()
 			{
-				//Debug("callBack\n");
-				//Debug("Width %f\n", bitmap->Dimensions.Width);
-				//Debug("Height %f\n", bitmap->Dimensions.Height);
-				//Debug("Number of buffers %d\n", bitmap->Buffers->Length);
-				//Debug("Pitch %d\n", bitmap->Buffers->get(0)->Pitch);
-				// buffer 0: Y
-				// buffer 1: UV
-				//Debug("ColorMode buf0 %d\n", bitmap->Buffers->get(0)->ColorMode);
-				//Debug("Pitch buf0 %d\n", bitmap->Buffers->get(0)->Pitch);
-				//Debug("Capacity buf0 %d\n", bitmap->Buffers->get(0)->Buffer->Capacity);
-				//Debug("ColorMode buf1 %d\n", bitmap->Buffers->get(1)->ColorMode);
-				//Debug("Pitch buf1 %d\n", bitmap->Buffers->get(1)->Pitch);
-				//Debug("Capacity buf1 %d\n", bitmap->Buffers->get(1)->Buffer->Capacity);
+				// Improve low light perf
+				NoiseFilter(pBufOrig, 360, 1280);
 
-				BYTE *pBufOrig2 = pBufOrig;
-				BYTE *pBufDest2 = pBufDest;
+				try {
+					Binarizer* binarizer(new Binarizer());
+					// Binarize row 360 and store result in row 362 (row 361 contains the threshold used by the binarizer)
+					binarizer->binarizeRow(pBufOrig + 360 * 1280, pBufOrig + 362 * 1280, pBufOrig + 361 * 1280, 1280);
+
+					CodaBarReader* reader(new CodaBarReader());
+					std::string result = reader->read(pBufOrig + 362 * 1280, 1280);
+					Debug("Result: %s\n", result.c_str());
+					std::wstring w_str = to_wstring(frameCounter) + L" " + std::wstring(result.begin(), result.end());
+					TextBoxResult->Text = ref new Platform::String(w_str.c_str());
+				}
+				catch (char* reason) {
+					Debug("Exception: %s\n", reason);
+					std::wstring w_str = to_wstring(frameCounter) + L" NOTHING";
+					TextBoxResult->Text = ref new Platform::String(w_str.c_str());
+				}
+				
+
+				// Transform 0..1 of row 362 to 0..255
+				for (int x = 0; x < 1280; x++) {
+					*(pBufOrig + 362 * 1280 + x) = *(pBufOrig + 362 * 1280 + x) * 255;
+				}
+				memcpy(pBufOrig + 363 * 1280, pBufOrig + 362 * 1280, 1280);
+				memcpy(pBufOrig + 364 * 1280, pBufOrig + 362 * 1280, 1280);
+				memcpy(pBufOrig + 365 * 1280, pBufOrig + 362 * 1280, 1280);
+				memcpy(pBufOrig + 366 * 1280, pBufOrig + 362 * 1280, 1280);
+				memcpy(pBufOrig + 367 * 1280, pBufOrig + 362 * 1280, 1280);
+				memcpy(pBufOrig + 368 * 1280, pBufOrig + 362 * 1280, 1280);
+				memcpy(pBufOrig + 369 * 1280, pBufOrig + 362 * 1280, 1280);
+				memcpy(pBufOrig + 370 * 1280, pBufOrig + 362 * 1280, 1280);
+
+				// Copy the luminance buffer of the preview to the BGRA buffer of the display (writeableBitmap)
+				uint8_t* pBufDest2 = pBufDest;
 				for (int i = 0; i < 1280*720; i++) {
 					// Blue
-					*pBufDest2 = *(pBufOrig2 + i);
+					*pBufDest2 = *(pBufOrig + i);
 					pBufDest2++;
 					// Green
-					*pBufDest2 = *(pBufOrig2 + i);
+					*pBufDest2 = *(pBufOrig + i);
 					pBufDest2++;
 					// Red
-					*pBufDest2 = *(pBufOrig2 + i);
+					*pBufDest2 = *(pBufOrig + i);
 					pBufDest2++;
 					// Alpha
 					*pBufDest2 = 0xFF;
 					pBufDest2++;
 				}
-				char *test = (char*)pBufOrig;
-				ArrayRef<char> test2 = zxing::ArrayRef<char>(test, 1280*720);
 
-				Ref<LuminanceSource> source(new GreyscaleLuminanceSource(test2, 1280, 720, 0, 0, 1280, 720));
-				Ref<Binarizer> binarizer(new HybridBinarizer(source));
-
-				Ref<BinaryBitmap> image(new BinaryBitmap(binarizer));
-				DecodeHints hints(DecodeHints::CODE_128_HINT);
-
-				reader = new zxing::oned::MultiFormatOneDReader(hints);
-				try {
-					Ref<Result> result = reader->decode(image, hints);
-					Ref<zxing::String> text = result->getText();
-					
-					Debug("Result: %s\n", text->getText().c_str());
-					std::string sTxt =text->getText();
-					std::wstring w_str = to_wstring(frameCounter) + L" " + std::wstring(sTxt.begin(), sTxt.end());
-					TextBoxResult->Text = ref new Platform::String(w_str.c_str());
-				}
-				catch (zxing::NotFoundException const& ignored) {
-					(void)ignored;
-					Debug("NotFoundException\n");
-				}
+				DebugGraph(pBufOrig, pBufDest, 1280);
 
 				previewImage->Source = _writeableBitmap;
 				_writeableBitmap->Invalidate(); // force the PreviewBitmap to redraw
@@ -235,5 +354,8 @@ void MainPage::OnPreviewFrameAvailable(Lumia::Imaging::IImageSize ^imageSize)
 		});
 	}
 }
+
+
+
 
 
