@@ -274,6 +274,26 @@ void MainPage::Button_Stop_Click(Platform::Object^ sender, Windows::UI::Xaml::Ro
 	create_task(_cameraPreviewImageSource->StopPreviewAsync());
 }
 
+void Wp81CodeScanner::MainPage::SuccessfulRead(std::string read)
+{
+	bool newRead = false;
+	if (lastRead.compare(read) != 0) {
+		// Totaly new read
+		newRead = true;
+		lastRead = read;
+	}
+	else if (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - lastReadTime).count() > 1000) {
+		// Same read but 5 seconds ago
+		newRead = true;
+	}
+
+	if (newRead) {
+		Debug("NEW READ\n");
+		Beep->Play();
+	}
+	lastReadTime = std::chrono::system_clock::now();
+}
+
 void MainPage::OnPreviewFrameAvailable(Lumia::Imaging::IImageSize ^imageSize)
 {
 	frameCounter++;
@@ -303,6 +323,7 @@ void MainPage::OnPreviewFrameAvailable(Lumia::Imaging::IImageSize ^imageSize)
 					Debug("Result: %s\n", result.c_str());
 					std::wstring w_str = to_wstring(frameCounter) + L" " + std::wstring(result.begin(), result.end());
 					TextBoxResult->Text = ref new Platform::String(w_str.c_str());
+					SuccessfulRead(result);
 				}
 				catch (char* reason) {
 					Debug("Exception: %s\n", reason);
@@ -354,8 +375,3 @@ void MainPage::OnPreviewFrameAvailable(Lumia::Imaging::IImageSize ^imageSize)
 		});
 	}
 }
-
-
-
-
-

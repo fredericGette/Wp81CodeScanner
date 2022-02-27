@@ -51,4 +51,9 @@
     <None Include="packages.config" />
     <None Include="$(MSBuildThisFileDirectory)\..\..\content\$(MappedPlatformToolset)\Help\Lumia Imaging SDK.chm" />
   </ItemGroup>
+  <ItemGroup>
+    <Media Include="Assets\beep-07a.wav">
+      <Filter>Assets</Filter>
+    </Media>
+  </ItemGroup>
 </Project>

@@ -12,6 +12,7 @@ namespace Windows {
     namespace UI {
         namespace Xaml {
             namespace Controls {
+                ref class MediaElement;
                 ref class Image;
                 ref class TextBox;
             }
@@ -31,6 +32,7 @@ namespace Wp81CodeScanner
     private:
         bool _contentLoaded;
     
+        private: ::Windows::UI::Xaml::Controls::MediaElement^ Beep;
         private: ::Windows::UI::Xaml::Controls::Image^ previewImage;
         private: ::Windows::UI::Xaml::Controls::TextBox^ TextBoxResult;
     };

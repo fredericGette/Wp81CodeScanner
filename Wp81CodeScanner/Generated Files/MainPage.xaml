@@ -8,6 +8,7 @@
     mc:Ignorable="d">
 
     <Grid Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+        <MediaElement Name="Beep" Source="Assets/beep-07a.wav" AutoPlay="False"/>
         <Image Name="previewImage"/>
         <StackPanel Margin="20">
             <Button x:ConnectionId='1'                          >Stop</Button>

@@ -6,6 +6,7 @@
 #pragma once
 
 #include "MainPage.g.h"
+#include <chrono>
 
 namespace Wp81CodeScanner
 {
@@ -32,6 +33,10 @@ namespace Wp81CodeScanner
 		void NoiseFilter(uint8_t* pBufOrig, int row, int width);
 		void NoiseFilterX(uint8_t* pBufOrig, int row, int width);
 		void NoiseFilterY(uint8_t* pBufOrig, int row, int width);
+		std::string lastRead;
+		std::chrono::system_clock::time_point lastReadTime;
+		void SuccessfulRead(std::string read);
+
 
 		void StartPreview();
 		void Button_Stop_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e);
