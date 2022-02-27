@@ -11,7 +11,6 @@
         <MediaElement Name="Beep" Source="Assets/beep-07a.wav" AutoPlay="False"/>
         <Image Name="previewImage"/>
         <StackPanel Margin="20">
-            <Button Click="Button_Stop_Click">Stop</Button>
             <TextBox Name="TextBoxResult" IsReadOnly="true" Height="100"/>
         </StackPanel>
     </Grid>

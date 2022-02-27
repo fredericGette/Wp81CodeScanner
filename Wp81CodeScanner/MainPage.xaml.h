@@ -17,6 +17,7 @@ namespace Wp81CodeScanner
 	{
 	public:
 		MainPage();
+		virtual ~MainPage();
 
 	protected:
 		virtual void OnNavigatedTo(Windows::UI::Xaml::Navigation::NavigationEventArgs^ e) override;
@@ -37,9 +38,16 @@ namespace Wp81CodeScanner
 		std::chrono::system_clock::time_point lastReadTime;
 		void SuccessfulRead(std::string read);
 
+		// Event tokens
+		Windows::Foundation::EventRegistrationToken _applicationSuspendingEventToken;
+		Windows::Foundation::EventRegistrationToken _applicationResumingEventToken;
+
+		// Event handlers
+		void Application_Suspending(Object^ sender, Windows::ApplicationModel::SuspendingEventArgs^ e);
+		void Application_Resuming(Object^ sender, Object^ args);
+		void OnPreviewFrameAvailable(Lumia::Imaging::IImageSize ^imageSize);
 
 		void StartPreview();
-		void Button_Stop_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e);
-		void OnPreviewFrameAvailable(Lumia::Imaging::IImageSize ^imageSize);
+		
 	};
 }

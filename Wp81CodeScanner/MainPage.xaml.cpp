@@ -30,8 +30,8 @@ using namespace Windows::Graphics::Imaging;
 using namespace Windows::Storage::Streams;
 using namespace Lumia::Imaging;
 using namespace std;
+using namespace Windows::Web::Http;
 
-// The Blank Page item template is documented at http://go.microsoft.com/fwlink/?LinkId=234238
 
 MainPage::MainPage()
 	: _cameraPreviewImageSource(nullptr)
@@ -43,7 +43,20 @@ MainPage::MainPage()
 	, pBufDest(nullptr)
 {
 	InitializeComponent();
+
+	// Useful to know when to initialize/clean up the camera
+	_applicationSuspendingEventToken =
+		Application::Current->Suspending += ref new SuspendingEventHandler(this, &MainPage::Application_Suspending);
+	_applicationResumingEventToken =
+		Application::Current->Resuming += ref new EventHandler<Object^>(this, &MainPage::Application_Resuming);
 }
+
+MainPage::~MainPage()
+{
+	Application::Current->Suspending -= _applicationSuspendingEventToken;
+	Application::Current->Resuming -= _applicationResumingEventToken;
+}
+
 
 /// <summary>
 /// Invoked when this page is about to be displayed in a Frame.
@@ -269,11 +282,6 @@ void MainPage::StartPreview()
 
 }
 
-void MainPage::Button_Stop_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e)
-{
-	create_task(_cameraPreviewImageSource->StopPreviewAsync());
-}
-
 void Wp81CodeScanner::MainPage::SuccessfulRead(std::string read)
 {
 	bool newRead = false;
@@ -290,8 +298,62 @@ void Wp81CodeScanner::MainPage::SuccessfulRead(std::string read)
 	if (newRead) {
 		Debug("NEW READ\n");
 		Beep->Play();
+
+		// transform string to wstring...
+		std::wstring w_str = std::wstring(read.begin(), read.end());
+		// ... and then to HttpStringContent
+		HttpStringContent^ content = ref new HttpStringContent(ref new Platform::String(w_str.c_str()));
+
+		Uri^ uri = ref new Uri(L"http://192.168.1.30");
+		HttpClient^ httpClient = ref new HttpClient();
+		create_task(httpClient->PostAsync(uri, content)).then([this](HttpResponseMessage^ httpResponse) {
+
+			if (!httpResponse->IsSuccessStatusCode) {
+				Debug("POST response error. \n");
+			}
+
+		}).then([this](task<void> t) {
+			try
+			{
+				// Try getting all exceptions from the continuation chain above this point.
+				t.get();
+			}
+			catch (Exception^) {
+				Debug("Exception.\n");
+			}
+			catch (std::exception &) {
+				Debug("Exception.\n");
+			}
+			catch (...) {
+				Debug("Exception.\n");
+			}
+		});
+
 	}
 	lastReadTime = std::chrono::system_clock::now();
+}
+
+void Wp81CodeScanner::MainPage::Application_Suspending(Object ^ sender, Windows::ApplicationModel::SuspendingEventArgs ^ e)
+{
+	// Handle global application events only if this page is active
+	if (Frame->CurrentSourcePageType.Name == Interop::TypeName(MainPage::typeid).Name)
+	{
+		// deferral = Ensure that the system lets the method complete before suspending the app.
+		auto deferral = e->SuspendingOperation->GetDeferral();
+		create_task(_cameraPreviewImageSource->StopPreviewAsync()).then([this, deferral]()
+		{
+			deferral->Complete();
+		});
+	}
+}
+
+void Wp81CodeScanner::MainPage::Application_Resuming(Object ^ sender, Object ^ args)
+{
+	// Handle global application events only if this page is active
+	if (Frame->CurrentSourcePageType.Name == Interop::TypeName(MainPage::typeid).Name)
+	{
+		StartPreview();
+	}
 }
 
 void MainPage::OnPreviewFrameAvailable(Lumia::Imaging::IImageSize ^imageSize)

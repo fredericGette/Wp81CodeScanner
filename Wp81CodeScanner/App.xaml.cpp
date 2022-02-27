@@ -137,4 +137,6 @@ void App::OnSuspending(Object^ sender, SuspendingEventArgs^ e)
 	(void) e;		// Unused parameter
 
 	// TODO: Save application state and stop any background activity
+	auto deferral  = e->SuspendingOperation->GetDeferral();
+	deferral->Complete();
 }
