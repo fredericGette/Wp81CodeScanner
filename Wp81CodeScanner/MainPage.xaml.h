@@ -18,17 +18,19 @@ namespace Wp81CodeScanner
 	public:
 		MainPage();
 		virtual ~MainPage();
+		void HardwareButtons_BackPressed(Object ^ sender, Windows::Phone::UI::Input::BackPressedEventArgs ^ e);
 
 	protected:
 		virtual void OnNavigatedTo(Windows::UI::Xaml::Navigation::NavigationEventArgs^ e) override;
 
 	private:
+		void AppBarButton_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e);
+
 		Lumia::Imaging::CameraPreviewImageSource^ _cameraPreviewImageSource;
 		Lumia::Imaging::BitmapRenderer^ _bitmapRenderer;
 		bool _isRendering;
 		Windows::UI::Xaml::Media::Imaging::WriteableBitmap^ _writeableBitmap;
 		Lumia::Imaging::Bitmap^ _bitmap;
-		unsigned char frameCounter;
 		byte *pBufOrig;
 		byte *pBufDest;
 		void NoiseFilter(uint8_t* pBufOrig, int row, int width);
@@ -45,9 +47,18 @@ namespace Wp81CodeScanner
 		// Event handlers
 		void Application_Suspending(Object^ sender, Windows::ApplicationModel::SuspendingEventArgs^ e);
 		void Application_Resuming(Object^ sender, Object^ args);
+		void StateHelp();
+		void StateScanner();
+		void StateEditServer();
+		bool IsStateScanner();
+		void ReadServerFile();
+		void WriteServerFile();
 		void OnPreviewFrameAvailable(Lumia::Imaging::IImageSize ^imageSize);
 
 		void StartPreview();
+
+		// Local storage folder.
+		Windows::Storage::StorageFolder^ localFolder;
 		
 	};
 }

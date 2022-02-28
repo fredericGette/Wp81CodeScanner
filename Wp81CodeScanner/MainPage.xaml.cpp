@@ -28,27 +28,35 @@ using namespace concurrency;
 using namespace Windows::UI::Xaml::Media::Imaging;
 using namespace Windows::Graphics::Imaging;
 using namespace Windows::Storage::Streams;
+using namespace Windows::Storage;
 using namespace Lumia::Imaging;
 using namespace std;
 using namespace Windows::Web::Http;
+using namespace Windows::Phone::UI::Input;
 
+#define filename "wp81CodeScannerFile.txt"
+#define fileVersion "v1"
 
 MainPage::MainPage()
 	: _cameraPreviewImageSource(nullptr)
 	, _bitmap(nullptr)
 	, _bitmapRenderer(nullptr)
 	, _isRendering(false)
-	, frameCounter(0)
 	, pBufOrig(nullptr)
 	, pBufDest(nullptr)
+	, localFolder(nullptr)
 {
 	InitializeComponent();
+
+	HardwareButtons::BackPressed += ref new EventHandler<BackPressedEventArgs ^>(this, &MainPage::HardwareButtons_BackPressed);
 
 	// Useful to know when to initialize/clean up the camera
 	_applicationSuspendingEventToken =
 		Application::Current->Suspending += ref new SuspendingEventHandler(this, &MainPage::Application_Suspending);
 	_applicationResumingEventToken =
 		Application::Current->Resuming += ref new EventHandler<Object^>(this, &MainPage::Application_Resuming);
+
+	localFolder = ApplicationData::Current->LocalFolder;
 }
 
 MainPage::~MainPage()
@@ -78,9 +86,24 @@ void MainPage::OnNavigatedTo(NavigationEventArgs^ e)
 	//https://stackoverflow.com/questions/27394751/how-to-get-preview-buffer-of-mediacapture-universal-app
 	//https://stackoverflow.com/questions/29947225/access-preview-frame-from-mediacapture
 
+	ReadServerFile();
+
 	Windows::Graphics::Display::DisplayInformation::AutoRotationPreferences = Windows::Graphics::Display::DisplayOrientations::Landscape;
 
 	StartPreview();
+}
+
+void MainPage::HardwareButtons_BackPressed(Object^ sender, Windows::Phone::UI::Input::BackPressedEventArgs^ e)
+{
+	// Return to the list of computer.
+	if (!IsStateScanner())
+	{
+		//Indicate the back button press is handled so the app does not exit
+		e->Handled = true;
+
+		StateScanner();
+	}
+
 }
 
 void Debug(const char* format, ...)
@@ -132,6 +155,27 @@ void DebugGraph(uint8_t* pBufOrig, uint8_t* pBufDest, int width)
 		*(pBufDest + x * 4 + (400 + 255) * 1280 * 4) = 255; // Blue
 		*(pBufDest + x * 4 + (400 + 255) * 1280 * 4 + 1) = 0;
 		*(pBufDest + x * 4 + (400 + 255) * 1280 * 4 + 2) = 0;
+	}
+}
+
+void Wp81CodeScanner::MainPage::AppBarButton_Click(Platform::Object ^ sender, Windows::UI::Xaml::RoutedEventArgs ^ e)
+{
+	Button^ b = (Button^)sender;
+	if (b->Tag->ToString() == "Server")
+	{
+		// Want to configure the server.
+		StateEditServer();
+	}
+	else if (b->Tag->ToString() == "Save")
+	{
+		// Save server URL
+		WriteServerFile();
+		StateScanner();
+	}
+	else if (b->Tag->ToString() == "Help")
+	{
+		// Want to see the help page.
+		StateHelp();
 	}
 }
 
@@ -297,38 +341,45 @@ void Wp81CodeScanner::MainPage::SuccessfulRead(std::string read)
 
 	if (newRead) {
 		Debug("NEW READ\n");
-		Beep->Play();
+		
 
 		// transform string to wstring...
 		std::wstring w_str = std::wstring(read.begin(), read.end());
 		// ... and then to HttpStringContent
 		HttpStringContent^ content = ref new HttpStringContent(ref new Platform::String(w_str.c_str()));
 
-		Uri^ uri = ref new Uri(L"http://192.168.1.30");
-		HttpClient^ httpClient = ref new HttpClient();
-		create_task(httpClient->PostAsync(uri, content)).then([this](HttpResponseMessage^ httpResponse) {
+		String^ ServerURL = TextBoxURL->Text; //Example: L"http://192.168.1.30"
+		if (ServerURL != nullptr) {
+			Uri^ uri = ref new Uri(ServerURL);
+			HttpClient^ httpClient = ref new HttpClient();
+			create_task(httpClient->PostAsync(uri, content)).then([this](HttpResponseMessage^ httpResponse) {
 
-			if (!httpResponse->IsSuccessStatusCode) {
-				Debug("POST response error. \n");
-			}
+				if (httpResponse->IsSuccessStatusCode) {
+					Beep->Play();
+				}
+				else {
+					Debug("POST response error: %d\n", httpResponse->StatusCode);
+					std::wstring w_str = L"POST response error: " + to_wstring((int)httpResponse->StatusCode);
+					TextBoxResult->Text = ref new Platform::String(w_str.c_str());
+				}
 
-		}).then([this](task<void> t) {
-			try
-			{
-				// Try getting all exceptions from the continuation chain above this point.
-				t.get();
-			}
-			catch (Exception^) {
-				Debug("Exception.\n");
-			}
-			catch (std::exception &) {
-				Debug("Exception.\n");
-			}
-			catch (...) {
-				Debug("Exception.\n");
-			}
-		});
-
+			}).then([this](task<void> t) {
+				try
+				{
+					// Try getting all exceptions from the continuation chain above this point.
+					t.get();
+				}
+				catch (Exception^) {
+					Debug("Exception.\n");
+				}
+				catch (std::exception &) {
+					Debug("Exception.\n");
+				}
+				catch (...) {
+					Debug("Exception.\n");
+				}
+			});
+		}
 	}
 	lastReadTime = std::chrono::system_clock::now();
 }
@@ -358,8 +409,6 @@ void Wp81CodeScanner::MainPage::Application_Resuming(Object ^ sender, Object ^ a
 
 void MainPage::OnPreviewFrameAvailable(Lumia::Imaging::IImageSize ^imageSize)
 {
-	frameCounter++;
-
 	// Prevent multiple rendering attempts at once
 	if (_isRendering == false)
 	{
@@ -383,13 +432,14 @@ void MainPage::OnPreviewFrameAvailable(Lumia::Imaging::IImageSize ^imageSize)
 					CodaBarReader* reader(new CodaBarReader());
 					std::string result = reader->read(pBufOrig + 362 * 1280, 1280);
 					Debug("Result: %s\n", result.c_str());
-					std::wstring w_str = to_wstring(frameCounter) + L" " + std::wstring(result.begin(), result.end());
+					std::wstring w_str = std::wstring(result.begin(), result.end());
 					TextBoxResult->Text = ref new Platform::String(w_str.c_str());
 					SuccessfulRead(result);
 				}
 				catch (char* reason) {
 					Debug("Exception: %s\n", reason);
-					std::wstring w_str = to_wstring(frameCounter) + L" NOTHING";
+					string str(reason);
+					std::wstring w_str = std::wstring(str.begin(), str.end());
 					TextBoxResult->Text = ref new Platform::String(w_str.c_str());
 				}
 				
@@ -436,4 +486,93 @@ void MainPage::OnPreviewFrameAvailable(Lumia::Imaging::IImageSize ^imageSize)
 
 		});
 	}
+}
+
+////////////////////////////////////////////////:
+
+
+void Wp81CodeScanner::MainPage::StateHelp()
+{
+	PanelScanner->Visibility = Windows::UI::Xaml::Visibility::Collapsed;
+	PanelEditServer->Visibility = Windows::UI::Xaml::Visibility::Collapsed;
+	PanelHelp->Visibility = Windows::UI::Xaml::Visibility::Visible;
+	ServerAppBarButton->Visibility = Windows::UI::Xaml::Visibility::Collapsed;
+	HelpAppBarButton->Visibility = Windows::UI::Xaml::Visibility::Collapsed;
+	SaveAppBarButton->Visibility = Windows::UI::Xaml::Visibility::Collapsed;
+}
+
+void Wp81CodeScanner::MainPage::StateScanner()
+{
+	PanelScanner->Visibility = Windows::UI::Xaml::Visibility::Visible;
+	PanelEditServer->Visibility = Windows::UI::Xaml::Visibility::Collapsed;
+	PanelHelp->Visibility = Windows::UI::Xaml::Visibility::Collapsed;
+	ServerAppBarButton->Visibility = Windows::UI::Xaml::Visibility::Visible;
+	HelpAppBarButton->Visibility = Windows::UI::Xaml::Visibility::Visible;
+	SaveAppBarButton->Visibility = Windows::UI::Xaml::Visibility::Collapsed;
+}
+
+void Wp81CodeScanner::MainPage::StateEditServer()
+{
+	PanelScanner->Visibility = Windows::UI::Xaml::Visibility::Collapsed;
+	PanelEditServer->Visibility = Windows::UI::Xaml::Visibility::Visible;
+	PanelHelp->Visibility = Windows::UI::Xaml::Visibility::Collapsed;
+	ServerAppBarButton->Visibility = Windows::UI::Xaml::Visibility::Collapsed;
+	HelpAppBarButton->Visibility = Windows::UI::Xaml::Visibility::Collapsed;
+	SaveAppBarButton->Visibility = Windows::UI::Xaml::Visibility::Visible;
+}
+
+bool Wp81CodeScanner::MainPage::IsStateScanner()
+{
+	return PanelScanner->Visibility == Windows::UI::Xaml::Visibility::Visible;
+}
+
+void Wp81CodeScanner::MainPage::ReadServerFile()
+{
+	create_task(localFolder->GetFileAsync(filename)).then([this](StorageFile^ file)
+	{
+		return FileIO::ReadLinesAsync(file);
+	}).then([this](IVector<String^>^ lines)
+	{
+		String^ version = lines->GetAt(0);
+		Debug("File version "); OutputDebugString(version->Data()); Debug("\n");
+
+		if (lines->Size > 1) {
+			TextBoxURL->Text = lines->GetAt(1);
+		}
+
+	}).then([this](task<void> t)
+	{
+
+		try
+		{
+			t.get();
+			// .get() didn' t throw, so we succeeded.
+			Debug("Read file succeeded.\n");
+		}
+		catch (Platform::COMException^ e)
+		{
+			// The system cannot find the specified file.
+			OutputDebugString(e->Message->Data());
+			// First time that this application is launched?
+			// Create empty file
+			WriteServerFile();
+		}
+
+	});
+}
+
+void Wp81CodeScanner::MainPage::WriteServerFile()
+{
+	create_task(localFolder->CreateFileAsync(filename, CreationCollisionOption::ReplaceExisting)).then(
+		[this](StorageFile^ file)
+	{
+		IVector<String^>^ lines = ref new Platform::Collections::Vector<String^>();
+		lines->Append(fileVersion);
+
+		if (TextBoxURL->Text != nullptr) {
+			lines->Append(TextBoxURL->Text);
+		}
+
+		return FileIO::AppendLinesAsync(file, lines);
+	});
 }

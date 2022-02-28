@@ -70,7 +70,7 @@ int Wp81CodeScanner::Binarizer::estimateBlackPoint(int* buckets, int numBuckets)
 	// "<= 1/16 of the total histogram buckets apart"
 	// std::cerr << "! " << secondPeak << " " << firstPeak << " " << numBuckets << std::endl;
 	if (secondPeak - firstPeak <= numBuckets >> 4) {
-		throw "Not enough contrast";
+		throw "Contrast is too low.";
 	}
 
 	// Find a valley between them that is low and closer to the white peak

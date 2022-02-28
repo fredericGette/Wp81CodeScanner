@@ -8,10 +8,29 @@
     mc:Ignorable="d">
 
     <Grid Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
-        <MediaElement Name="Beep" Source="Assets/beep-07a.wav" AutoPlay="False"/>
-        <Image Name="previewImage"/>
-        <StackPanel Margin="20">
-            <TextBox Name="TextBoxResult" IsReadOnly="true" Height="100"/>
+        <StackPanel x:Name="PanelScanner"  Margin="20,30,0,0">
+            <MediaElement Name="Beep" Source="Assets/beep-07a.wav" AutoPlay="False"/>
+            <Image Name="previewImage"/>
+            <TextBox Name="TextBoxResult" IsReadOnly="true"/>
+        </StackPanel>
+        <StackPanel x:Name="PanelEditServer" Margin="20,30,0,0" Visibility="Collapsed">
+            <TextBlock HorizontalAlignment="Left" Text="Server" FontSize="36"/>
+            <TextBlock Text="URL" Margin="0,20,0,0"/>
+            <TextBox x:Name="TextBoxURL" Margin="0,10,30,0"/>
+        </StackPanel>
+        <StackPanel x:Name="PanelHelp" Margin="20,30,0,0" Visibility="Collapsed">
+            <TextBlock HorizontalAlignment="Left" Text="Wp81 Code Scanner" FontSize="36"/>
+            <TextBlock Text="Scan 1D CodaBar." Margin="0,20,0,0" Style="{ThemeResource BaseTextBlockStyle}" />
+            <TextBlock Text="Add a server URL to send the scanned value in the payload of a HTTP POST request." Margin="0,10,0,0" Style="{ThemeResource BaseTextBlockStyle}" />
+            <TextBlock Text="v1.0 - 2022 - fredget" Margin="0,40,0,0" Style="{ThemeResource BaseTextBlockStyle}"/>
         </StackPanel>
     </Grid>
+
+    <Page.BottomAppBar>
+        <CommandBar>
+            <AppBarButton x:Name="ServerAppBarButton" Tag="Server" Label="Server" Icon="Setting" Click="AppBarButton_Click"/>
+            <AppBarButton x:Name="SaveAppBarButton" Tag="Save" Label="Save" Icon="Save" Click="AppBarButton_Click" Visibility="Collapsed"/>
+            <AppBarButton x:Name="HelpAppBarButton" Tag="Help" Label="Help" Icon="Help" Click="AppBarButton_Click"/>
+        </CommandBar>
+    </Page.BottomAppBar>
 </Page>
