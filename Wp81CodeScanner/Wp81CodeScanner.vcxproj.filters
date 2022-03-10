@@ -33,6 +33,7 @@
     <ClCompile Include="pch.cpp" />
     <ClCompile Include="Binarizer.cpp" />
     <ClCompile Include="CodaBarReader.cpp" />
+    <ClCompile Include="WininetHelper.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />
@@ -40,6 +41,7 @@
     <ClInclude Include="MainPage.xaml.h" />
     <ClInclude Include="Binarizer.h" />
     <ClInclude Include="CodaBarReader.h" />
+    <ClInclude Include="WininetHelper.h" />
   </ItemGroup>
   <ItemGroup>
     <AppxManifest Include="Package.appxmanifest" />

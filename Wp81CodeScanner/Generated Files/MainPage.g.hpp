@@ -32,10 +32,12 @@ void ::Wp81CodeScanner::MainPage::InitializeComponent()
     TextBoxURL = safe_cast<::Windows::UI::Xaml::Controls::TextBox^>(static_cast<Windows::UI::Xaml::IFrameworkElement^>(this)->FindName(L"TextBoxURL"));
     // Get the MediaElement named 'Beep'
     Beep = safe_cast<::Windows::UI::Xaml::Controls::MediaElement^>(static_cast<Windows::UI::Xaml::IFrameworkElement^>(this)->FindName(L"Beep"));
+    // Get the TextBox named 'TextBoxReader'
+    TextBoxReader = safe_cast<::Windows::UI::Xaml::Controls::TextBox^>(static_cast<Windows::UI::Xaml::IFrameworkElement^>(this)->FindName(L"TextBoxReader"));
+    // Get the TextBox named 'TextBoxNetwork'
+    TextBoxNetwork = safe_cast<::Windows::UI::Xaml::Controls::TextBox^>(static_cast<Windows::UI::Xaml::IFrameworkElement^>(this)->FindName(L"TextBoxNetwork"));
     // Get the Image named 'previewImage'
     previewImage = safe_cast<::Windows::UI::Xaml::Controls::Image^>(static_cast<Windows::UI::Xaml::IFrameworkElement^>(this)->FindName(L"previewImage"));
-    // Get the TextBox named 'TextBoxResult'
-    TextBoxResult = safe_cast<::Windows::UI::Xaml::Controls::TextBox^>(static_cast<Windows::UI::Xaml::IFrameworkElement^>(this)->FindName(L"TextBoxResult"));
     // Get the AppBarButton named 'ServerAppBarButton'
     ServerAppBarButton = safe_cast<::Windows::UI::Xaml::Controls::AppBarButton^>(static_cast<Windows::UI::Xaml::IFrameworkElement^>(this)->FindName(L"ServerAppBarButton"));
     // Get the AppBarButton named 'SaveAppBarButton'

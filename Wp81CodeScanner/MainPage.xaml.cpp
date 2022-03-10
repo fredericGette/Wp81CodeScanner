@@ -9,6 +9,7 @@
 #include <string>
 #include <Binarizer.h>
 #include <CodaBarReader.h>
+#include <WininetHelper.h>
 
 using namespace Wp81CodeScanner;
 
@@ -356,11 +357,12 @@ void Wp81CodeScanner::MainPage::SuccessfulRead(std::string read)
 
 				if (httpResponse->IsSuccessStatusCode) {
 					Beep->Play();
+					TextBoxNetwork->Text = L"Success";
 				}
 				else {
 					Debug("POST response error: %d\n", httpResponse->StatusCode);
 					std::wstring w_str = L"POST response error: " + to_wstring((int)httpResponse->StatusCode);
-					TextBoxResult->Text = ref new Platform::String(w_str.c_str());
+					TextBoxNetwork->Text = ref new Platform::String(w_str.c_str());
 				}
 
 			}).then([this](task<void> t) {
@@ -369,10 +371,15 @@ void Wp81CodeScanner::MainPage::SuccessfulRead(std::string read)
 					// Try getting all exceptions from the continuation chain above this point.
 					t.get();
 				}
-				catch (Exception^) {
-					Debug("Exception.\n");
+				catch (Exception^ e) {
+					Debug("Exception 0x%X %s\n", e->HResult, e->Message);
+					WininetHelper::Helper* Helper(new WininetHelper::Helper());
+					std::string errorMessage = Helper->getHResultErrorMessage(e->HResult);
+					Debug("Error Message: %s\n", errorMessage.c_str());
+					std::wstring w_str = std::wstring(errorMessage.begin(), errorMessage.end());
+					TextBoxNetwork->Text = ref new Platform::String(w_str.c_str());
 				}
-				catch (std::exception &) {
+				catch (std::exception &e) {
 					Debug("Exception.\n");
 				}
 				catch (...) {
@@ -433,14 +440,14 @@ void MainPage::OnPreviewFrameAvailable(Lumia::Imaging::IImageSize ^imageSize)
 					std::string result = reader->read(pBufOrig + 362 * 1280, 1280);
 					Debug("Result: %s\n", result.c_str());
 					std::wstring w_str = std::wstring(result.begin(), result.end());
-					TextBoxResult->Text = ref new Platform::String(w_str.c_str());
+					TextBoxReader->Text = ref new Platform::String(w_str.c_str());
 					SuccessfulRead(result);
 				}
 				catch (char* reason) {
 					Debug("Exception: %s\n", reason);
 					string str(reason);
 					std::wstring w_str = std::wstring(str.begin(), str.end());
-					TextBoxResult->Text = ref new Platform::String(w_str.c_str());
+					TextBoxReader->Text = ref new Platform::String(w_str.c_str());
 				}
 				
 

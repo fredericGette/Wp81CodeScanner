@@ -39,8 +39,9 @@ namespace Wp81CodeScanner
         private: ::Windows::UI::Xaml::Controls::StackPanel^ PanelHelp;
         private: ::Windows::UI::Xaml::Controls::TextBox^ TextBoxURL;
         private: ::Windows::UI::Xaml::Controls::MediaElement^ Beep;
+        private: ::Windows::UI::Xaml::Controls::TextBox^ TextBoxReader;
+        private: ::Windows::UI::Xaml::Controls::TextBox^ TextBoxNetwork;
         private: ::Windows::UI::Xaml::Controls::Image^ previewImage;
-        private: ::Windows::UI::Xaml::Controls::TextBox^ TextBoxResult;
         private: ::Windows::UI::Xaml::Controls::AppBarButton^ ServerAppBarButton;
         private: ::Windows::UI::Xaml::Controls::AppBarButton^ SaveAppBarButton;
         private: ::Windows::UI::Xaml::Controls::AppBarButton^ HelpAppBarButton;
