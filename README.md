@@ -1,5 +1,5 @@
 # wp81CodeScanner
-Linear barcode scanner for WindowsPhone 8.1
+Linear barcode scanner for Windows Phone 8.1
 
 Currently only able to read 1D codabar.
 
