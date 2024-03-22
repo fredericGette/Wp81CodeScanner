@@ -7,4 +7,3 @@ Code that is read can be send to a server.
 
 Project requires Visual Studio 2015 with Windows Phone 8.1 support.
 
-Based on https://github.com/gumb0/wol.cpp 
